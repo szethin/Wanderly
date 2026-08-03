@@ -1,0 +1,22 @@
+# --- Core LLM & Agent Framework ---
+langchain
+langgraph
+langchain-core
+
+# --- Model Providers ---
+langchain-google-genai
+
+# --- Tools Integration ---
+langchain-tavily
+
+# --- Backend API Framework ---
+fastapi
+uvicorn
+pydantic
+
+# --- Frontend UI ---
+streamlit
+
+# --- Utilities ---
+requests
+python-dotenv
