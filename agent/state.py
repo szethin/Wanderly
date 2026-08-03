@@ -1,0 +1,33 @@
+from typing import TypedDict, List, Dict, Any
+
+# TypedDict: Used by LangGraph to strictly define the global state passed between nodes.
+class WanderlyState(TypedDict):
+    """
+    Global Single Source of Truth schema for Wanderly.
+    Maintains user profile, tool decisions, raw API observations, and final outputs.
+    """
+
+    # --- 1. User Profile Inputs ---
+    destination: str            # Target travel destination (e.g., "Tokyo, Japan")
+    duration: int               # Number of days (e.g., 5)
+    budget: float               # Budget cap (e.g., 5000.0)
+    travel_style: List[str]     # Selected preferences (e.g., ["Anime", "Food"])
+    constraints: List[str]      # Constraints (e.g., ["No hiking", "Vegetarian"])
+    special_requests: str       # Custom free-form instructions from user
+
+    # --- 2. Agent Planning State ---
+    planner_plan: List[str]     # Subtasks planned by the Planner Node
+    required_tools: List[str]   # Dynamic tool selection list output by Planner
+
+    # --- 3. External Tool Observations ---
+    # Storing raw JSON/Dict responses from tools, so downstream nodes read structured facts directly
+    maps_result: Dict[str, Any]
+    weather_result: Dict[str, Any]
+    search_result: Dict[str, Any]
+
+    # --- 4. Reflection & Iterative Control ---
+    critique: str               # Feedback from Reflection Node
+    revision_count: int         # Loop safeguard counter to prevent infinite reflections
+
+    # --- 5. Final Output ---
+    final_itinerary: str        # Complete synthesized Markdown travel plan
