@@ -20,6 +20,11 @@ class PlannerOutput(BaseModel):
         description="List of external tools to call. Must strictly contain choices from: ['maps', 'weather', 'tavily']. If no tools are needed, return an empty list."
     )
 
+    maps_query: str = Field(
+        default="attractions",
+        description="If 'maps' is selected, determine the best place type to search based on user style (e.g., 'restaurants', 'museums', 'attractions')."
+    )
+
     search_query: str = Field(
         default="",
         description="If 'tavily' is selected, write a highly optimized search engine query to fetch the missing info (e.g. historical climate, niche constraints). Leave empty if tavily is not used."

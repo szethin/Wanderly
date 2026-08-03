@@ -12,9 +12,9 @@ Analyze the user's travel request and output a structured JSON plan.
 DO NOT generate the itinerary. DO NOT answer the user directly.
 
 TOOL SELECTION RULES:
-1. 'maps': Use to find places, attractions, and coordinates.
-2. 'weather': Use ONLY if the user's trip date is explicitly within 5 days from today ({TODAY_DATE}). 
-3. 'tavily': Use for web search. CRITICAL: If the trip is beyond 5 days or date is unspecified, DO NOT use 'weather'. Instead, use 'tavily' to search for historical climate/average weather for that month. Also use for niche constraints (e.g., wheelchair accessibility, halal food).
+1. 'maps': Use to find places. Determine the best `maps_query` (e.g., 'restaurants', 'musuems', 'attractions').
+2. 'weather': CRITICAL LOGIC - Compare the user's `start_date` with today ({TODAY_DATE}). Use this tool ONLY if the `start_date` is exactly within 5 days from today.
+3. Use for web search. If the `start_date` is beyond 5 days, DO NOT use 'weather'. Instead, use 'tavily' to search for historical climate averages. Also use for niche constraints (e.g., wheelchair accessibility, halal food).
 
 QUERY FORMULATION:
 If you select 'tavily', you MUST write a highly optimized `search_query` to extract maximum value. 

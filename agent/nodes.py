@@ -40,7 +40,7 @@ def planner_node(state: WanderlyState) -> dict:
     # 6. Special Requests
     prompt = ChatPromptTemplate.from_messages([
         ("system", PLANNER_PROMPT),
-        ("user", "Destination: {destination}\nDuration: {duration} days\nBudget: {budget}\nStyle: {travel_style}\nConstraints: {constraints}\nSpecial Requests: {special_requests}")
+        ("user", "Destination: {destination}\nStart Date: {start_date}\nDuration: {duration} days\nBudget: {budget}\nStyle: {travel_style}\nConstraints: {constraints}\nSpecial Requests: {special_requests}")
     ])
 
     # .with_structured_output(): LangChain's native method to enforce output format in Pydantic schema
@@ -50,6 +50,7 @@ def planner_node(state: WanderlyState) -> dict:
         # Pass required state variables to format the prompt
         raw_result = chain.invoke({
             "destination": state.get("destination"),
+            "start_date": state.get("start_date", "Unknown"),
             "duration": state.get("duration"),
             "budget": state.get("budget"),
             "travel_style": state.get("travel_style"),
@@ -70,6 +71,7 @@ def planner_node(state: WanderlyState) -> dict:
             "planner_reasoning": result.planner_reasoning,
             "planner_plan": result.planner_plan,
             "required_tools": result.required_tools,
+            "maps_query": result.maps_query,
             "search_query": result.search_query
         }
 
@@ -99,7 +101,8 @@ def tool_executor_node(state: WanderlyState) -> dict:
 
     if "maps" in tools_to_run:
         print("   -> 📍 Calling Google Maps...")
-        updates["maps_result"] = search_google_maps(destination, query_type="attractions")
+        maps_query = state.get("maps_query", "attractions")
+        updates["maps_result"] = search_google_maps(destination, query_type=maps_query)
 
     if "weather" in tools_to_run:
         print("   -> 🌤️ Calling OpenWeather...")
@@ -123,10 +126,10 @@ def generator_node(state: WanderlyState) -> dict:
         ("system", GENERATOR_PROMPT),
         ("user", """
         User Profile:
-        Destination: {destination} ({duration} days, Budget: {budget})
+        Destination: {destination} (Starting: {start_date} for {duration} days, Budget: {budget})
         Travel Style: {travel_style}
         Constraints: {constraints}
-        Speacial Requests: {special_requests}
+        Special Requests: {special_requests}
         
         Agent Plan: {planner_plan}
         
@@ -145,6 +148,7 @@ def generator_node(state: WanderlyState) -> dict:
 
     final_output = chain.invoke({
         "destination": state.get("destination"),
+        "start_date": state.get("start_date"),
         "duration": state.get("duration"),
         "budget": state.get("budget"),
         "style": state.get("travel_style"),

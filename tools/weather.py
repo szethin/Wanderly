@@ -66,5 +66,5 @@ def get_weather_forecast(destination: str) -> Dict[str, Any]:
         return {
             "status": "ERROR", 
             "error": str(e), 
-            "condition": "Unknown"
+            "forecast": []
         }
