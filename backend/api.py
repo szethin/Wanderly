@@ -79,6 +79,7 @@ async def plan_trip(request: TripRequest):
         # Extract essential outputs for the frontend
         return {
             "status": "success",
+            "planner_plan": final_state.get("planner_plan"),
             "planner_reasoning": final_state.get("planner_reasoning"),
             "required_tools": final_state.get("required_tools"),
             "maps_query": final_state.get("maps_query"),

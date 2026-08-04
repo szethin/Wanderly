@@ -203,8 +203,17 @@ def generator_node(state: WanderlyState) -> dict:
         "search_result": state.get("search_result", "No web data retrieved.")
     })
 
-    # Extract raw content string and tokens manually
-    final_output = response.content
+    # Extract raw content and tokens manually
+    raw_content = response.content
+    
+    # FIX: Gemini's raw content without StrOutputParser is a list of block dicts e.g., [{'type': 'text', 'text': '...'}]
+    # We must cleanly extract the actual string before storing it into the global state.
+    if isinstance(raw_content, list) and len(raw_content) > 0 and isinstance(raw_content[0], dict):
+        final_output = raw_content[0].get("text", str(raw_content))
+    else:
+        final_output = str(raw_content) # Fallback for pure strings or unexpected formats
+
+    # Safely extract telemetry tokens (completely unaffected by the content formatting above)
     tokens = getattr(response, "usage_metadata", {}).get("total_tokens", 0) if hasattr(response, "usage_metadata") else 0
 
     # Initialize the metrics dictionary inside the state

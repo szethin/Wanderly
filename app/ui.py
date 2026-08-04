@@ -104,31 +104,53 @@ if generate_btn:
                     data = response.json()
                     status.update(label="Planning Complete!", state="complete", expanded=False)
 
-                    # --- Transparent Agent Trace Streaming ---
+                    # --- Transparent Agent Trace  ---
                     st.subheader("Agent Trace")
 
                     with st.expander("🧠 Planner Node Reasoning", expanded=True):
                         # 1. Planner Reasoning
                         st.write(data.get("planner_reasoning"))
 
-                        # 2. Tools Selected
+                        # 2. Planner's step-by-step subtasks
+                        st.write("**📝 Subtasks Planned:**")
+                        for i, step in enumerate(data.get("planner_plan", [])):
+                            st.write(f"{i+1}. {step}")
+                        st.write("---")
+
+                        # 3. Tools Selected
                         st.write(f"🛠️ **Tools Selected:** `{data.get('required_tools')}`")
 
+                        # 4. Map & Search Queries
                         if "maps" in data.get("required_tools", []):
                             st.write(f"📍 **Maps Query:** `{data.get('maps_query')}`")
 
                         if "tavily" in data.get("required_tools", []):
                             st.write(f"🔍 **Search Query:** `{data.get('search_query')}`")
-
-
-                    # --- Final Output ---
-                    st.subheader("🗺️ Generated Itinerary")
-                    st.markdown(data.get("itinerary"))
-
+                    
                 else: 
                     status.update(label="Planning Failed", state="error")
                     st.error(f"Backend Error: {response.text}")
+                    st.stop() # Force stop execution here if it fails
 
             except Exception as e:
                 status.update(label="Connection Error", state="error")
                 st.error(f"Failed to connect to backend: {e}")
+                st.stop()
+
+        # ==========================================
+        # OUTSIDE THE st.status BLOCK
+        # This ensures the final itinerary is ALWAYS fully visible
+        # ==========================================
+        if 'data' in locals() and response.status_code == 200:
+            st.subheader("🗺️ Generated Itinerary")
+            
+            # FIX: Clean up the raw dict format if it exists, extracting just the pure markdown text
+            raw_itinerary = data.get("itinerary", "")
+            if isinstance(raw_itinerary, dict):
+                # Safely extract 'text' or 'content' depending on how the LLM formatted it
+                clean_itinerary = raw_itinerary.get("text", raw_itinerary.get("content", str(raw_itinerary)))
+            else:
+                clean_itinerary = str(raw_itinerary)
+                
+            st.markdown(clean_itinerary)
+
