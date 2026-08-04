@@ -8,8 +8,8 @@ from langchain_core.output_parsers import StrOutputParser
 
 # Import State, Prompts, and Schema
 from agent.state import WanderlyState
-from agent.prompts import PLANNER_PROMPT, GENERATOR_PROMPT
-from models.schema import PlannerOutput
+from agent.prompts import PLANNER_PROMPT, GENERATOR_PROMPT, REFLECTION_PROMPT
+from models.schema import PlannerOutput, ReflectionOutput
 
 # Import external tools
 from tools.google_maps import search_google_maps, get_coordinates
@@ -42,7 +42,7 @@ def planner_node(state: WanderlyState) -> dict:
     # 6. Special Requests
     prompt = ChatPromptTemplate.from_messages([
         ("system", PLANNER_PROMPT),
-        ("user", "Destination: {destination}\nStart Date: {start_date}\nDuration: {duration} days\nBudget: {budget}\nStyle: {travel_style}\nConstraints: {constraints}\nSpecial Requests: {special_requests}")
+        ("user", "Destination: {destination}\nStart Date: {start_date}\nDuration: {duration} days\nBudget: RM {budget} (Malaysian Ringgit)\nStyle: {travel_style}\nConstraints: {constraints}\nSpecial Requests: {special_requests}")
     ])
 
     # .with_structured_output(): LangChain's native method to enforce output format in Pydantic schema
@@ -158,9 +158,121 @@ def tool_executor_node(state: WanderlyState) -> dict:
     return updates
 
 
+def reflection_node(state: WanderlyState) -> dict:
+    """
+    Node 3 (V2): The Critic & Coach. Evaluates tool outputs and decides if re-planning is needed.
+    """
+    print("🧐 [Reflection Node] Evaluating tool results and constraints...")
+    start_time = time.time()
+
+    # Extract current state variables for checking
+    revision_count = state.get("revision_count", 0)
+    past_queries = state.get("past_queries", [])
+    current_maps_query = state.get("maps_query", "")
+    current_search_query = state.get("search_query", "")
+
+    # --- MEMORY MANAGEMENT ---
+    # Append the queries that were JUST executed into the past queries list to prevent LLM from reusing them
+    updated_past_queries = list(past_queries) # Create a copy to avoid mutating the original reference directly
+    if current_maps_query and current_maps_query not in updated_past_queries:
+        updated_past_queries.append(current_maps_query)
+    if current_search_query and current_search_query not in updated_past_queries:
+        updated_past_queries.append(current_search_query)
+
+    # --- HARD LOOP SAFEGUARD ---
+    # Max 2 revisions. If we hit the limit, gracefully force the system to proceed to generation.
+    if revision_count >= 2:
+        print("⚠️ [Reflection Node] Max revision limit reached. Forcing generation fallback.")
+        return {
+            "need_more_info": False,
+            "reflection_feedback": "Max iterations reached. Proceeding with available data.",
+            "revision_count": revision_count + 1,
+            "past_queries": updated_past_queries
+        }
+
+    # --- PROMPT INJECTION ---
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", REFLECTION_PROMPT),
+        ("user", """
+        User Travel Plan Request: 
+        Destination: {destination} ({duration} days, Budget: RM {budget} (Malaysian Ringgit))
+        Style: {travel_style} | Constraints: {constraints} | Requests: {special_requests}
+
+        Past Failed Queries (DO NOT REUSE): {past_queries}
+
+        --- Current Tool Observations ---
+        Maps Data: {maps_result}
+        Weather Data: {weather_result}
+        Web Search Data: {search_result}
+        ---------------------------------
+        """)
+    ])
+
+    # Using llm_logic (temp=0) for strict, deterministic QA reasoning.
+    # .with_structured_output(): LangChain's native method to enforce output format in Pydantic schema
+    chain = prompt | llm_logic.with_structured_output(ReflectionOutput, include_raw=True) # include_raw=True allows us to access both the parsed Pydantic object AND the raw LLM message (for tokens)
+
+    try:
+        raw_output = cast(dict, chain.invoke({
+            "destination": state.get("destination"),
+            "duration": state.get("duration"),
+            "budget": state.get("budget"),
+            "travel_style": state.get("travel_style"),
+            "constraints": state.get("constraints"),
+            "special_requests": state.get("special_requests"),
+            "past_queries": updated_past_queries,
+            "maps_result": state.get("maps_result", "None"),
+            "weather_result": state.get("weather_result", "None"),
+            "search_result": state.get("search_result", "None")
+        }))
+
+        # Extract parsed object and raw message safely
+        result = cast(ReflectionOutput, raw_output["parsed"])
+        raw_msg = raw_output["raw"]
+
+        # Safely extract token count, defaulting to 0 if API hides it
+        tokens = getattr(raw_msg, "usage_metadata", {}).get("total_tokens", 0) if hasattr(raw_msg, "usage_metadata") else 0
+
+        print(f"   -> Critique: {result.reflection_feedback}")
+        print(f"   -> Needs More Info: {result.need_more_info}")
+
+        # Update telemetry
+        current_metrics = state.get("metrics", {})
+        current_metrics.update({
+            # Accumulate time and tokens in case of multiple reflections
+            "reflection_time": current_metrics.get("reflection_time", 0) + (time.time() - start_time),
+            "reflection_tokens": current_metrics.get("reflection_tokens", 0) + tokens
+        })
+
+        # --- STATE UPDATE RETURN ---
+        # Any key returned here automatically OVERWRITES or APPENDS to the global WanderlyState
+        return {
+            "need_more_info": result.need_more_info,
+            "reflection_feedback": result.reflection_feedback,
+            "required_tools": result.required_tools,    # Overwrites old tools if returning to Tool Executor
+            "maps_query": result.maps_query,            # Overwrites with new optimized query
+            "search_query": result.search_query,        # Overwrites with new optimized query
+            "revision_count": revision_count + 1,       # Increment loop counter
+            "past_queries": updated_past_queries,       # Save updated past queries list
+            "metrics": current_metrics
+        }
+
+    except Exception as e:
+        print(f"❌ [Reflection Node] Output parsing failed: {e}")
+        # Graceful Fallback: If LLM fails to structure output, break the loop and force generation to avoid infinite crash loops
+        return {
+            "need_more_info": False,
+            "reflection_feedback": "Reflection error. Forcing fallback to Generation phase.",
+            "revision_count": revision_count + 1,
+            "past_queries": updated_past_queries,
+            "metrics": state.get("metrics", {})
+        }
+
+
+
 def generator_node(state: WanderlyState) -> dict:
     """
-    Node 3: Final Synthesis. Reads all structured tool observations and drafts the itinerary.
+    Node 4: Final Synthesis. Reads all structured tool observations and drafts the itinerary.
     """
     print("✍️ [Generator Node] Synthesizing final itinerary...")
     start_time = time.time() # Start stopwatch
@@ -169,7 +281,7 @@ def generator_node(state: WanderlyState) -> dict:
         ("system", GENERATOR_PROMPT),
         ("user", """
         User Profile:
-        Destination: {destination} (Starting: {start_date} for {duration} days, Budget: {budget})
+        Destination: {destination} (Starting: {start_date} for {duration} days, Budget: RM {budget} (Malaysian Ringgit))
         Travel Style: {travel_style}
         Constraints: {constraints}
         Special Requests: {special_requests}
