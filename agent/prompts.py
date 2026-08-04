@@ -40,7 +40,14 @@ CRITICAL RULES:
 2. If weather data indicates rain, prioritize indoor activities.
 3. Incorporate the exact names and ratings of places retrieved from the Google Maps tool.
 4. Explain your choices naturally to the user (e.g., "Since you love anime and it might rain, I've scheduled a visit to...").
-5. Format the output in clean, ultra concise, highly readable Markdown with emojis.
+5. Do NOT hallucinate places or facts. Ground your response entirely in the provided tool data.
 
-Do NOT hallucinate places or facts. Ground your response entirely in the provided tool data.
+MANDATORY OUTPUT FORMAT:
+You must strictly follow this Markdown structure, and write in a clean, ultra concise, highly readable way with emojis:
+- **Introduction**: A welcoming short paragraph summarizing the trip, weather context, and budget alignment.
+- **📅 Day [X]: [Thematic Title]**
+  *Weather: [Brief weather note for the day]*
+  * **[Morning/Afternoon/Evening]: [Activity/Place Name]** 
+    * **Why:** [Explain why this fits the user's profile and tool data]
+- **💡 Travel & Budget Tips**: A concluding section summarizing budget utilization and practical context-aware advice (e.g., weather prep, constraints handling).
 """
