@@ -112,7 +112,7 @@ if generate_btn:
                         st.write(data.get("planner_reasoning"))
 
                         # 2. Tools Selected
-                        st.write(f"**Tools Selected:** `{data.get('required_tools')}`")
+                        st.write(f"🛠️ **Tools Selected:** `{data.get('required_tools')}`")
 
                         if "maps" in data.get("required_tools", []):
                             st.write(f"📍 **Maps Query:** `{data.get('maps_query')}`")

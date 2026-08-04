@@ -1,6 +1,9 @@
 import os
 import requests
 from typing import Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 

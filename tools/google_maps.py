@@ -1,6 +1,9 @@
 import os
 import requests
 from typing import Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Read API Key from environment variables loaded via python-dotenv
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
