@@ -47,7 +47,15 @@ def build_graph():
     # 4. Define the Dynamic Control Flow (Conditional Edges)
     builder.add_conditional_edges(
         "reflection",   # The node where the decision is made
-        should_continue_planning    # The routing function returning the target node's string name
+        should_continue_planning,    # The routing function returning the target node's string name
+        
+        # Explicit path map (Dictionary). 
+        # Required for LangGraph's Mermaid visualizer to statically draw the cyclical edges.
+        # Format: {"return_value_from_router": "actual_target_node_name"}
+        {
+            "tool_executor": "tool_executor",
+            "generator": "generator"
+        }
     )
 
 
