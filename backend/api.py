@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, cast
 import uvicorn
+import time
 
 # Import the state
 from agent.state import WanderlyState
@@ -29,6 +30,7 @@ async def plan_trip(request: TripRequest):
     REST endpoint to trigger the LangGraph agentic workflow.
     """
     print(f"📥 [API] Received trip planning request for {request.destination} starting {request.start_date}")
+    api_start_time = time.time()
 
     # Construct the initial state dictionary matching WanderlyState schema
     initial_state = {
@@ -39,11 +41,40 @@ async def plan_trip(request: TripRequest):
         "travel_style": request.travel_style,
         "constraints": request.constraints,
         "special_requests": request.special_requests,
+        "metrics": {} # Initialize empty metrics dictionary
     }
 
     try:
-        # Runs compiled LangGraph from START to END
+        # Runs compiled LangGraph using initial_state as input
         final_state = wanderly_graph.invoke(cast(WanderlyState, initial_state))
+
+        # Calculate Total System Latency
+        total_time = time.time() - api_start_time
+        metrics = final_state.get("metrics", {})
+
+        # =====================================================
+        # CONSOLIDATED TELEMETRY PRINT FOR V1 Baseline LOGGING
+        # =====================================================
+        print("\n" + "="*50)
+        print("📊 WANDERLY METRICS REPORT (V1 Baseline)")
+        print("="*50)
+        print(f"⏱️  Total Latency: {total_time:.2f}s")
+        print(f"   ├─ Planner Time:   {metrics.get('planner_time', 0):.2f}s")
+        print(f"   ├─ Tools Time:     (Maps: {metrics.get('maps_time', 0):.2f}s | Weather: {metrics.get('weather_time', 0):.2f}s | Tavily: {metrics.get('tavily_time', 0):.2f}s)")
+        print(f"   └─ Generator Time: {metrics.get('generator_time', 0):.2f}s")
+        print("-" * 50)
+
+        total_tokens = metrics.get('planner_tokens', 0) + metrics.get('generator_tokens', 0)
+        print(f"🪙  Total Tokens:  {total_tokens}")
+        print(f"   ├─ Planner:        {metrics.get('planner_tokens', 0)}")
+        print(f"   └─ Generator:      {metrics.get('generator_tokens', 0)}")
+        
+        print("-" * 50)
+        print("🛠️  Tool Calls:")
+        print(f"   ├─ Maps:    {metrics.get('maps_calls', 0)}")
+        print(f"   ├─ Weather: {metrics.get('weather_calls', 0)}")
+        print(f"   └─ Tavily:  {metrics.get('tavily_calls', 0)}")
+        print("="*50 + "\n")
 
         # Extract essential outputs for the frontend
         return {

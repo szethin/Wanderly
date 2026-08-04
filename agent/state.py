@@ -35,3 +35,6 @@ class WanderlyState(TypedDict):
 
     # --- 5. Final Output ---
     final_itinerary: str        # Complete synthesized Markdown travel plan
+
+    # --- 6. Telemetry & Metrics ---
+    metrics: Dict[str, Any]     # Centralized storage for response times and token usage across nodes
