@@ -110,11 +110,14 @@ def tool_executor_node(state: WanderlyState) -> dict:
     """
     Node 2: Deterministic Tool Execution. No LLM involved.
     Reads 'required_tools' and triggers actual Python tool functions.
+    Accumulates tool call counts & execution times across iterative cycles.
     """
     print("⚙️ [Tool Executor Node] Executing dynamic tools...")
 
     tools_to_run = state.get("required_tools", [])
     destination = state.get("destination", "Unknown")
+
+    # Retrieve existing metrics from the global state to prevent overwriting
     current_metrics = state.get("metrics", {})
 
     # State update dictionary to accumulate tool execution results
@@ -129,8 +132,9 @@ def tool_executor_node(state: WanderlyState) -> dict:
         maps_query = state.get("maps_query", "attractions")
         updates["maps_result"] = search_google_maps(destination, query_type=maps_query)
 
-        # Update telemetry (tool time & tool call count)
-        current_metrics.update({"maps_time": time.time() - t0, "maps_calls": 1})
+        # Dynamically accumulate execution time and increment tool call count across loops
+        current_metrics["maps_time"] = current_metrics.get("maps_time", 0.0) + (time.time() - t0)
+        current_metrics["maps_calls"] = current_metrics.get("maps_calls", 0) + 1
 
     if "weather" in tools_to_run:
         print("   -> 🌤️ Calling OpenWeather...")
@@ -140,8 +144,9 @@ def tool_executor_node(state: WanderlyState) -> dict:
         # Update tool call results
         updates["weather_result"] = get_weather_forecast(destination)
 
-        # Update telemetry (tool time & tool call count)
-        current_metrics.update({"weather_time": time.time() - t0, "weather_calls": 1})
+        # Dynamically accumulate execution time and increment tool call count across loops
+        current_metrics["weather_time"] = current_metrics.get("weather_time", 0.0) + (time.time() -  t0)
+        current_metrics["weather_calls"] = current_metrics.get("weather_calls", 0) + 1
 
     if "tavily" in tools_to_run:
         print("   -> 🔍 Calling Tavily Web Search...")
@@ -152,9 +157,13 @@ def tool_executor_node(state: WanderlyState) -> dict:
         query = state.get("search_query", f"travel guide {destination}")
         updates["search_result"] = search_travel_info(query)
 
-        # Update telemetry (tool time & tool call count)
-        current_metrics.update({"tavily_time": time.time() - t0, "tavily_calls": 1})
+        # Dynamically accumulate execution time and increment tool call count across loops
+        current_metrics["tavily_time"] = current_metrics.get("tavily_time", 0.0) + (time.time() - t0)
+        current_metrics["tavily_calls"] = current_metrics.get("tavily_calls", 0) + 1
 
+    # Persist the properly aggregated metrics back into the state update dictionary
+    updates["metrics"] = current_metrics
+    
     return updates
 
 
