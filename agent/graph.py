@@ -1,12 +1,30 @@
 from langgraph.graph import StateGraph, START, END
 from agent.state import WanderlyState
-from agent.nodes import planner_node, tool_executor_node, generator_node
+from agent.nodes import planner_node, tool_executor_node, reflection_node, generator_node
+
+
+def should_continue_planning(state: WanderlyState) -> str:
+    """
+    Conditional router function.
+    Determines the next node dynamically based on the reflection flag in global state.
+    """
+
+    # Read the boolean flag set by the reflection node
+    need_more_info = state.get("need_more_info", False)
+
+    if need_more_info:
+        print("🔄 [Router] Reflection requested more info. Routing back to Tool Executor.")
+        return "tool_executor"
+    else:
+        return "generator"
+
+
 
 def build_graph():
     """
-    Constructs and compile the Wanderly StateGraph.
+    Constructs and compile the Wanderly StateGraph with cyclical reflection loops.
     """
-    print("🕸️ [Graph] Assembling Wanderly StateGraph...")
+    print("🕸️ [Graph] Assembling Wanderly StateGraph (V2)...")
 
     # 1. Initial the graph with WanderlyState, so it can pass it between all nodes
     builder = StateGraph(WanderlyState)
@@ -14,22 +32,32 @@ def build_graph():
     # 2. Add Nodes
     builder.add_node("planner", planner_node)
     builder.add_node("tool_executor", tool_executor_node)
+    builder.add_node("reflection", reflection_node)
     builder.add_node("generator", generator_node)
 
-    # 3. Add Edges
+    # 3. Define the Static Control Flow (Fixed Edges)
     builder.add_edge(START, "planner")
 
-    # Baseline linear flow: Planner -> Tools -> Generator
+    # Planner outputs initial required_tools -> Pass to Executor
     builder.add_edge("planner", "tool_executor")
-    builder.add_edge("tool_executor", "generator")
 
-    # Exit point
+    # After executing tools, ALWAYS route observations to Reflection for QA evaluation
+    builder.add_edge("tool_executor", "reflection")
+
+    # 4. Define the Dynamic Control Flow (Conditional Edges)
+    builder.add_conditional_edges(
+        "reflection",   # The node where the decision is made
+        should_continue_planning    # The routing function returning the target node's string name
+    )
+
+
+    # 5. Exit point
     builder.add_edge("generator", END)
 
-    # 4. Compile the graph
+    # 6. Compile the graph
     graph = builder.compile()
 
-    print("✅ [Graph] Compilation successful.")
+    print("✅ [Graph] V2 Compilation successful.")
     return graph
 
 # Instantiate the compiled graph so it can be imported directly by the FastAPI backend
