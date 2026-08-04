@@ -21,8 +21,8 @@ You can only select each tool a MAXIMUM OF ONE TIME per execution.
 Do not plan multiple separate searches for the same tool. Consolidate your intent into a single tool invocation.
 
 QUERY FORMULATION RULES:
-- For 'maps_query': If 'maps' is selected, formulate ONE consolidated phrase representing the highest priority place type (e.g., "top cultural attractions and halal restaurants"). Default to "attractions" if unspecified.
-- For 'search_query': If 'tavily' is selected, write a highly optimized search engine query to extract maximum value. 
+- For 'maps_query': Google Maps Places API CANNOT process complex or compound sentences. You MUST formulate a SINGLE, simple category noun phrase representing the highest priority place type (e.g., "vegetarian restaurants" OR "anime shops", NEVER "anime shops and vegetarian restaurants"). Default to "attractions" if unsure.
+- For 'search_query': If 'tavily' is selected, write a highly optimized search engine query to extract maximum value across multiple constraints. 
   Bad: "weather in tokyo"
   Good: "Tokyo average historical weather temperature December clothing tips"
 
