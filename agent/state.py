@@ -22,6 +22,7 @@ class WanderlyState(TypedDict):
     required_tools: List[str]   # Dynamic tool selection list output by Planner
     maps_query: str             # Dynamically crafted query for Google Places
     search_query: str           # Highly optimized query written by Planner for Tavily tool
+    weather_query: str          # Cleaned city name specifically crafted for OpenWeather API
 
     # --- 3. External Tool Observations ---
     # Storing raw JSON/Dict responses from tools, so downstream nodes read structured facts directly

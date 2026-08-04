@@ -62,8 +62,9 @@ Analyze the user's travel plan request and compare them against the current Tool
 CRITICAL EVALUATION RULES:
 1. Maps 0 Results: If 'maps_result' returned 0 places, your previous query was too complex (e.g., used "AND"). You MUST set 'need_more_info' to True, select 'maps' in required_tools, and provide a brutally simple, ONE-WORD noun for 'maps_query' (e.g., "attractions", "restaurants").
 2. Weather Hazards: If 'weather_result' indicates rain/storms or any bad weather, and the current tool observation focuses on outdoor nature, set 'need_more_info' to True, select 'tavily' in required_tools, and formulate a new query to search for alternatives that mitigate the bad weather (e.g. indoor).
-3. Infinite Loop Prevention: Look at the "Past Queries". You MUST NOT suggest a 'maps_query' or 'search_query' that has already been tried.
-4. Sufficient Data: If the tool observations contain concrete place names and align with constraints, set 'need_more_info' to False.
+3. Weather 404 (City Not Found): If 'weather_result' indicates an HTTP 404 error, the 'weather_query' was misspelled or too complex. You MUST set 'need_more_info' to True, select 'weather' in required_tools, and output a corrected, globally recognized city name in 'weather_query' (e.g., correct "Hatyai, Thailand" to "Hat Yai").
+4. Infinite Loop Prevention: Look at the "Past Queries". You MUST NOT suggest a 'maps_query' or 'search_query' that has already been tried.
+5. Sufficient Data: If the tool observations contain concrete place names and align with constraints, set 'need_more_info' to False.
 
 Output your evaluation strictly in the requested JSON format.
 """

@@ -90,6 +90,7 @@ def planner_node(state: WanderlyState) -> dict:
             "required_tools": result.required_tools,
             "maps_query": result.maps_query,
             "search_query": result.search_query,
+            "weather_query": result.weather_query,
             "metrics": current_metrics # Save telemetry to state
         }
 
@@ -141,8 +142,9 @@ def tool_executor_node(state: WanderlyState) -> dict:
         # Weather tool call start time
         t0 = time.time()
 
-        # Update tool call results
-        updates["weather_result"] = get_weather_forecast(destination)
+        # Dynamic fallback: Use LLM-cleaned weather_query if available, else default to raw destination
+        weather_query = state.get("weather_query") or destination
+        updates["weather_result"] = get_weather_forecast(weather_query)
 
         # Dynamically accumulate execution time and increment tool call count across loops
         current_metrics["weather_time"] = current_metrics.get("weather_time", 0.0) + (time.time() -  t0)
@@ -163,7 +165,7 @@ def tool_executor_node(state: WanderlyState) -> dict:
 
     # Persist the properly aggregated metrics back into the state update dictionary
     updates["metrics"] = current_metrics
-    
+
     return updates
 
 

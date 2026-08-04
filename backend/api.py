@@ -43,6 +43,8 @@ async def plan_trip(request: TripRequest):
         "constraints": request.constraints,
         "special_requests": request.special_requests,
 
+        "weather_query": request.destination,  # NEW: Initialize with raw user input, let Agent fix it if it fails
+
         # --- Initialize Reflection State Variables ---
         "reflection_feedback": "",
         "need_more_info": False,

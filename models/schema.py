@@ -30,6 +30,13 @@ class PlannerOutput(BaseModel):
         description="If 'tavily' is selected, write a highly optimized search engine query to fetch the missing info (e.g. historical climate, niche constraints). Leave empty if tavily is not used."
     )
 
+    weather_query: str = Field(
+        default="",
+        description="The target city name for the weather API. Must be a clean, standard globally recognized city name (e.g., 'Tokyo', 'Hat Yai'). Do NOT include country names or commas."
+    )
+
+
+
 class ReflectionOutput(BaseModel):
     """
     Structured schema enforcing the output format for the Reflection Node.
@@ -56,4 +63,9 @@ class ReflectionOutput(BaseModel):
     search_query: str = Field(
         default="",
         description="Optimized search engine query for Tavily if retrying."
+    )
+
+    weather_query: str = Field(
+        default="",
+        description="The target city name for the weather API. Must be a clean, standard globally recognized city name (e.g., 'Tokyo', 'Hat Yai'). Do NOT include country names or commas."
     )
