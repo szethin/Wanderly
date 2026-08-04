@@ -194,10 +194,20 @@ def reflection_node(state: WanderlyState) -> dict:
     # Max 2 revisions. If we hit the limit, gracefully force the system to proceed to generation.
     if revision_count >= 2:
         print("⚠️ [Reflection Node] Max revision limit reached. Forcing generation fallback.")
+
+        # FIX (Amnesia Bug): Retrieve the last valuable LLM critique from the state before the cutoff.
+        # This prevents overwriting the agent's actual reasoning with a generic system error.
+        previous_feedback = state.get("reflection_feedback", "No previous feedback found.")
+        
         return {
             "need_more_info": False,
-            "reflection_feedback": "Max iterations reached. Proceeding with available data.",
-            "revision_count": revision_count + 1,
+            
+            # Append the system warning to the LLM's last valid critique for absolute UI transparency
+            "reflection_feedback": f"{previous_feedback}\n\n⚠️ **[System Guard]**: Max iterations reached. Forcing fallback to Generation phase.",
+            
+            # FIX (Off-by-one Bug): Return the exact revision_count (2) instead of falsely incrementing to 3
+            "revision_count": revision_count, 
+            
             "past_queries": updated_past_queries
         }
 
