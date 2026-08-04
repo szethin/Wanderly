@@ -30,8 +30,10 @@ class WanderlyState(TypedDict):
     search_result: Dict[str, Any]
 
     # --- 4. Reflection & Iterative Control ---
-    critique: str               # Feedback from Reflection Node
+    reflection_feedback: str    # Stores the critique from the Reflection Node to inform downstream nodes
+    need_more_info: bool        # Flag for the conditional edge to decide routing
     revision_count: int         # Loop safeguard counter to prevent infinite reflections
+    past_queries: List[str]     # Tracks previously executed queries to prevent redundant LLM tool calls
 
     # --- 5. Final Output ---
     final_itinerary: str        # Complete synthesized Markdown travel plan

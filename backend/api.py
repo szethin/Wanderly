@@ -34,6 +34,7 @@ async def plan_trip(request: TripRequest):
 
     # Construct the initial state dictionary matching WanderlyState schema
     initial_state = {
+        # --- Input: User Travel Request ---
         "destination": request.destination,
         "start_date": request.start_date,
         "duration": request.duration,
@@ -41,6 +42,13 @@ async def plan_trip(request: TripRequest):
         "travel_style": request.travel_style,
         "constraints": request.constraints,
         "special_requests": request.special_requests,
+
+        # --- Initialize Reflection State Variables ---
+        "reflection_feedback": "",
+        "need_more_info": False,
+        "revision_count": 0,
+        "past_queries": [],
+
         "metrics": {} # Initialize empty metrics dictionary
     }
 
