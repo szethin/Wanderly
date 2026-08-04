@@ -61,20 +61,22 @@ async def plan_trip(request: TripRequest):
         metrics = final_state.get("metrics", {})
 
         # =====================================================
-        # CONSOLIDATED TELEMETRY PRINT FOR V1 Baseline LOGGING
+        # CONSOLIDATED TELEMETRY PRINT FOR V2 LOGGING
         # =====================================================
         print("\n" + "="*50)
-        print("📊 WANDERLY METRICS REPORT (V1 Baseline)")
+        print("📊 WANDERLY METRICS REPORT (V2 Reflection)")
         print("="*50)
         print(f"⏱️  Total Latency: {total_time:.2f}s")
         print(f"   ├─ Planner Time:   {metrics.get('planner_time', 0):.2f}s")
         print(f"   ├─ Tools Time:     (Maps: {metrics.get('maps_time', 0):.2f}s | Weather: {metrics.get('weather_time', 0):.2f}s | Tavily: {metrics.get('tavily_time', 0):.2f}s)")
+        print(f"   ├─ Reflection Time: {metrics.get('reflection_time', 0):.2f}s")
         print(f"   └─ Generator Time: {metrics.get('generator_time', 0):.2f}s")
         print("-" * 50)
 
-        total_tokens = metrics.get('planner_tokens', 0) + metrics.get('generator_tokens', 0)
+        total_tokens = metrics.get('planner_tokens', 0) + metrics.get('reflection_tokens', 0) + metrics.get('generator_tokens', 0)
         print(f"🪙  Total Tokens:  {total_tokens}")
         print(f"   ├─ Planner:        {metrics.get('planner_tokens', 0)}")
+        print(f"   ├─ Reflection:      {metrics.get('reflection_tokens', 0)}")
         print(f"   └─ Generator:      {metrics.get('generator_tokens', 0)}")
         
         print("-" * 50)
@@ -89,9 +91,19 @@ async def plan_trip(request: TripRequest):
             "status": "success",
             "planner_plan": final_state.get("planner_plan"),
             "planner_reasoning": final_state.get("planner_reasoning"),
+
+            # These variables might have been overwritten by the Reflection Node
             "required_tools": final_state.get("required_tools"),
             "maps_query": final_state.get("maps_query"),
             "search_query": final_state.get("search_query"),
+
+            # Reflection variables
+            "reflection_feedback": final_state.get("reflection_feedback"),
+            "need_more_info": final_state.get("need_more_info"),
+            "revision_count": final_state.get("revision_count"),
+            "past_queries": final_state.get("past_queries"),
+
+            # Final itinerary
             "itinerary": final_state.get("final_itinerary")
         }
 

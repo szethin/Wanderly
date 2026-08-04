@@ -107,25 +107,59 @@ if generate_btn:
                     # --- Transparent Agent Trace  ---
                     st.subheader("Agent Trace")
 
-                    with st.expander("🧠 Planner Node Reasoning", expanded=True):
-                        # 1. Planner Reasoning
+                    # --- 1. Planner Node Trace ---
+                    with st.expander("🧠 Agent Reasoning", expanded=True):
+                        # 1.1. Planner Reasoning
+                        st.write("**🧠 Planner Node Reasoning**")
                         st.write(data.get("planner_reasoning"))
 
-                        # 2. Planner's step-by-step subtasks
+                        # 1.2. Planner's step-by-step subtasks
                         st.write("**📝 Subtasks Planned:**")
                         for i, step in enumerate(data.get("planner_plan", [])):
                             st.write(f"{i+1}. {step}")
-                        st.write("---")
 
-                        # 3. Tools Selected
+                        # 1.3. Tools Selected
                         st.write(f"🛠️ **Tools Selected:** `{data.get('required_tools')}`")
 
-                        # 4. Map & Search Queries
+                        # 1.4. Map & Search Queries
                         if "maps" in data.get("required_tools", []):
                             st.write(f"📍 **Maps Query:** `{data.get('maps_query')}`")
 
                         if "tavily" in data.get("required_tools", []):
                             st.write(f"🔍 **Search Query:** `{data.get('search_query')}`")
+
+                    # --- 2. Reflection Node Trace (Conditonal) ---
+                    revision_count = data.get("revision_count", 0)
+
+                    if revision_count > 0:
+                        with st.expander("🧐 Reflection Node Trace", expanded=True):
+
+                            st.warning("⚠️ **Agent triggered reflecton.**")
+
+                            # 2.1 Reflection Node Reasoning & Retry Count
+                            st.write(f"**🧐 Critique:** {data.get('reflection_feedback')}")
+                            st.write(f"**🔄 Revision Loop:** `{revision_count}` (Max limit: 2)")
+
+                            # 2.2 Past Failed Queries
+                            st.write(f"**❌ Past Failed Queries:** `{data.get('past_queries', [])}`")
+
+                            # 2.3 Updated Tool Call Plan & Tool Queries
+                            st.write("---")
+                            st.write("**✅ Updated Execution Plan:**")
+                            
+                            # Expose the Coach's new instructions that overwrote the Planner's original output
+                            st.write(f"🛠️ **New Tools Selected:** `{data.get('required_tools')}`")
+
+                            if "maps" in data.get("required_tools", []):
+                                st.write(f"📍 **Optimized Maps Query:** `{data.get('maps_query')}`")
+
+                            if "tavily" in data.get("required_tools", []):
+                                st.write(f"🔍 **Optimized Search Query:** `{data.get('search_query')}`")
+                        
+
+
+
+                        
                     
                 else: 
                     status.update(label="Planning Failed", state="error")
