@@ -39,7 +39,7 @@ def search_google_maps(destination: str, query_type: str = "attractions") -> Dic
                 {
                     "name": item.get("name"),
                     "rating": item.get("rating"),
-                    "address": item.get("address")
+                    "address": item.get("formatted_address")
                 }
                 for item in results
             ]
