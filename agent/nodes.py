@@ -220,7 +220,7 @@ def reflection_node(state: WanderlyState) -> dict:
 
     # --- HARD LOOP SAFEGUARD ---
     # Max 2 revisions. If we hit the limit, gracefully force the system to proceed to generation.
-    if revision_count >= 2:
+    if revision_count >= 1:
         print("⚠️ [Reflection Node] Max revision limit reached. Forcing generation fallback.")
 
         # Append a final system-level log entry to the audit trail
