@@ -4,9 +4,26 @@ from agent.state import WanderlyState
 from agent.nodes import planner_node, tool_executor_node, reflection_node, generator_node
 
 
+def route_after_planner(state: WanderlyState) -> str:
+    """
+    Contional router function for Planner Node.
+    If no tools are required (e.g., pure logic modification), bypass tool execution entirely and route straight to generation.
+    """
+
+    required_tools = state.get("required_tools", [])
+
+    # If the list is empty, route to generator
+    if len(required_tools) == 0:
+        print("⏭️ [Router] No external tools required. Bypassing execution and routing directly to Generator.")
+        return "generator"
+
+    # Otherwise, proceed to tool executor normally
+    return "tool_executor"
+
+
 def should_continue_planning(state: WanderlyState) -> str:
     """
-    Conditional router function.
+    Conditional router function for Reflection Node.
     Determines the next node dynamically based on the reflection flag in global state.
     """
 
@@ -38,10 +55,24 @@ def build_graph():
 
     # 3. Define the Static Control Flow (Fixed Edges)
     builder.add_edge(START, "planner")
-    builder.add_edge("planner", "tool_executor") # Planner outputs initial required_tools -> Pass to Executor
-    builder.add_edge("tool_executor", "reflection") # After executing tools, ALWAYS route observations to Reflection for QA evaluation
+
+    # After executing tools, ALWAYS route observations to Reflection for QA evaluation
+    builder.add_edge("tool_executor", "reflection") 
 
     # 4. Define the Dynamic Control Flow (Conditional Edges)
+
+    # 4.1 Dynamic routing straight out of the Planner
+    builder.add_conditional_edges(
+        "planner",
+        route_after_planner,
+
+        {
+            "generator": "generator",
+            "tool_executor": "tool_executor"
+        }
+    )
+
+    # 4.2 Dynamic routing out of Reflection
     builder.add_conditional_edges(
         "reflection",   # The node where the decision is made
         should_continue_planning,    # The routing function returning the target node's string name

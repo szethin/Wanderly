@@ -42,7 +42,7 @@ def planner_node(state: WanderlyState) -> dict:
     # 6. Special Requests
     prompt = ChatPromptTemplate.from_messages([
         ("system", PLANNER_PROMPT),
-        ("user", "Destination: {destination}\nStart Date: {start_date}\nDuration: {duration} days\nBudget: RM {budget} (Malaysian Ringgit)\nStyle: {travel_style}\nConstraints: {constraints}\nSpecial Requests: {special_requests}")
+        ("user", "Destination: {destination}\nStart Date: {start_date}\nDuration: {duration} days\nBudget: RM {budget} (Malaysian Ringgit)\nStyle: {travel_style}\nConstraints: {constraints}\nSpecial Requests: {special_requests}\nUser Feedback: {user_feedback}")
     ])
 
     # .with_structured_output(): LangChain's native method to enforce output format in Pydantic schema
@@ -57,7 +57,10 @@ def planner_node(state: WanderlyState) -> dict:
             "budget": state.get("budget"),
             "travel_style": state.get("travel_style"),
             "constraints": state.get("constraints"),
-            "special_requests": state.get("special_requests")
+            "special_requests": state.get("special_requests"),
+
+            # Safely extract user_feedback from the global state. Default to empty string for initial generation.
+            "user_feedback": state.get("user_feedback", "")
         }))
 
         # Extract parsed object and raw message safely
@@ -364,6 +367,8 @@ def generator_node(state: WanderlyState) -> dict:
         Travel Style: {travel_style}
         Constraints: {constraints}
         Special Requests: {special_requests}
+
+        User Feedback (Modification Request): {user_feedback}
         
         Agent Plan: {planner_plan}
         
@@ -372,6 +377,10 @@ def generator_node(state: WanderlyState) -> dict:
         Weather Data: {weather_result}
         Web Search Data: {search_result}
         -------------------------
+
+        --- Existing Itinerary ---
+        {final_itinerary}
+        --------------------------
         
         Generate the final itinerary now.
         """)
@@ -391,7 +400,11 @@ def generator_node(state: WanderlyState) -> dict:
         "planner_plan": state.get("planner_plan"),
         "maps_result": state.get("maps_result", "No map data retrieved."),
         "weather_result": state.get("weather_result", "No weather data retrieved."),
-        "search_result": state.get("search_result", "No web data retrieved.")
+        "search_result": state.get("search_result", "No web data retrieved."),
+
+        # Provide the LLM with the user's latest request and the previously generated itinerary to enable contextual editing
+        "user_feedback": state.get("user_feedback", ""),
+        "final_itinerary": state.get("final_itinerary", "No existing itinerary. This is the first generation.")
     })
 
     # Extract raw content and tokens manually
