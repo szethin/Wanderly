@@ -44,6 +44,10 @@ if "messages" not in st.session_state:
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = None
 
+# Initialize a tracker to record the sidebar configuration from the last successful execution
+if "last_config" not in st.session_state:
+    st.session_state.last_config = {}
+
 # Helper function
 def render_agent_trace(data: dict):
     """
@@ -161,6 +165,16 @@ if generate_btn:
             "content": user_prompt
         })
 
+        # Snapshot the current sidebar configuration for future delta detection
+        st.session_state.last_config = {
+            "destination": destination,
+            "start_date": start_date.strftime("%Y-%m-%d"),
+            "duration": duration,
+            "budget": budget,
+            "travel_style": travel_style,
+            "constraints": constraints,
+            "special_requests": special_requests
+        }
     
         # Execute blocking API call with a spinner UX
         with st.spinner("Agent is analyzing constraints and drafting your itinerary..."):
@@ -236,15 +250,56 @@ if st.session_state.thread_id:
     # The walrus operator (:=) assigns the input to user_feedback AND checks if it's not empty
     if user_feedback := st.chat_input("Refine your itinerary (e.g., 'Make it cheaper', 'Add a museum')..."):
 
-        # 1. Append user's iterative refinement request to the frontend session memory immediately
+        # ==========================================
+        # DELTA DETECTION ENGINE (FULL TRACKING)
+        # Check if the user modified ANY crucial sidebar inputs before submitting the chat
+        # ==========================================
+        changed_settings = []
+        if destination != st.session_state.last_config.get("destination"):
+            changed_settings.append(f"Destination: {destination}")
+        if start_date.strftime("%Y-%m-%d") != st.session_state.last_config.get("start_date"):
+            changed_settings.append(f"Date: {start_date.strftime('%Y-%m-%d')}")
+        if duration != st.session_state.last_config.get("duration"):
+            changed_settings.append(f"Duration: {duration} days")
+        if budget != st.session_state.last_config.get("budget"):
+            changed_settings.append(f"Budget: RM {budget}")
+            
+        # FIX: Track arrays and strings for holistic memory synchronization
+        if travel_style != st.session_state.last_config.get("travel_style"):
+            changed_settings.append(f"Style: {', '.join(travel_style)}")
+        if constraints != st.session_state.last_config.get("constraints"):
+            changed_settings.append(f"Constraints: {', '.join(constraints) if constraints else 'None'}")
+        if special_requests != st.session_state.last_config.get("special_requests"):
+            changed_settings.append(f"Requests: {special_requests}")
+            
+        system_note = ""
+        if changed_settings:
+            # Construct a markdown-formatted system note appending the exact changes
+            system_note = f"\n\n*(System Note: Sidebar updated -> {', '.join(changed_settings)})*"
+            
+        # Seamlessly augment the user's prompt with the system note
+        augmented_feedback = user_feedback + system_note
+
+        # Snapshot the newly updated FULL configuration for the next potential chat turn
+        st.session_state.last_config = {
+            "destination": destination,
+            "start_date": start_date.strftime("%Y-%m-%d"),
+            "duration": duration,
+            "budget": budget,
+            "travel_style": travel_style,         # ADDED
+            "constraints": constraints,           # ADDED
+            "special_requests": special_requests  # ADDED
+        }
+
+        # 1. Append augmented request to frontend session memory
         st.session_state.messages.append({
             "role": "user",
-            "content": user_feedback
+            "content": augmented_feedback
         })
 
-        # 2. Render the user's message instantly for responsive UX before the block API call
+        # 2. Render instantly for responsive UX
         with st.chat_message("user"):
-            st.markdown(user_feedback)
+            st.markdown(augmented_feedback)
 
         # 3. Execute block API call to LangGraph backend
         with st.spinner("Agent is refining your itinerary..."):

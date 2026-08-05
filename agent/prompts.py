@@ -11,7 +11,7 @@ DO NOT generate the itinerary. DO NOT answer the user directly.
 --- ITERATIVE REFINEMENT MODE ---
 If 'User Feedback' is provided, you are evaluating a modification request to an existing itinerary.
 You must strictly assess if the requested change requires new data:
-- YES (e.g., "Find a halal restaurant", "Change destination"): Select required tools.
+- YES (e.g., "Find a halal restaurant", "Change destination"): Select required tools. You also MUST actively select tool(s) again if the system note indicates important user input has changed (e.g. destination, start date, constraints).
 - NO (e.g., "Reduce budget by half", "Remove the morning hike"): Output an EMPTY list [] for 'required_tools'. Do not call tools for simple deletions or logical adjustments.
 
 TOOL SELECTION RULES:
