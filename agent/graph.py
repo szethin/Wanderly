@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from agent.state import WanderlyState
 from agent.nodes import planner_node, tool_executor_node, reflection_node, generator_node
 
@@ -22,9 +23,9 @@ def should_continue_planning(state: WanderlyState) -> str:
 
 def build_graph():
     """
-    Constructs and compile the Wanderly StateGraph with cyclical reflection loops.
+    Constructs and compile the Wanderly StateGraph with cyclical reflection loops and persistent memory.
     """
-    print("🕸️ [Graph] Assembling Wanderly StateGraph (V2)...")
+    print("🕸️ [Graph] Assembling Wanderly StateGraph (V3)...")
 
     # 1. Initial the graph with WanderlyState, so it can pass it between all nodes
     builder = StateGraph(WanderlyState)
@@ -37,12 +38,8 @@ def build_graph():
 
     # 3. Define the Static Control Flow (Fixed Edges)
     builder.add_edge(START, "planner")
-
-    # Planner outputs initial required_tools -> Pass to Executor
-    builder.add_edge("planner", "tool_executor")
-
-    # After executing tools, ALWAYS route observations to Reflection for QA evaluation
-    builder.add_edge("tool_executor", "reflection")
+    builder.add_edge("planner", "tool_executor") # Planner outputs initial required_tools -> Pass to Executor
+    builder.add_edge("tool_executor", "reflection") # After executing tools, ALWAYS route observations to Reflection for QA evaluation
 
     # 4. Define the Dynamic Control Flow (Conditional Edges)
     builder.add_conditional_edges(
@@ -62,10 +59,16 @@ def build_graph():
     # 5. Exit point
     builder.add_edge("generator", END)
 
-    # 6. Compile the graph
-    graph = builder.compile()
+    # 6. Initialize the checkpointer instance
+    # MemorySaver saves the graph state to RAM after every node executes. 
+    # This prevents data loss between user chat turns.
+    memory = MemorySaver()
 
-    print("✅ [Graph] V2 Compilation successful.")
+    # 7. Compile the graph & bind the checkpointer
+    # passing checkpointer=memory turns the graph from a stateless script into a stateful agent
+    graph = builder.compile(checkpointer=memory)
+
+    print("✅ [Graph] V3 Compilation successful (Memory Enabled).")
     return graph
 
 # Instantiate the compiled graph so it can be imported directly by the FastAPI backend
