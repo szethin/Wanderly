@@ -61,10 +61,15 @@ async def plan_trip(request: TripRequest):
     if request.user_feedback:
         print(f"🔄 [API] Iterative refinement detected for thread {active_thread_id}")
 
-        # We only pass the updated variable.
-        # LangGraph automatically merges this single key into the massive saved historical state.
+        # LangGraph automatically merges this dictionary into the saved historical state.
         input_state = {
-            "user_feedback": request.user_feedback
+            "user_feedback": request.user_feedback,
+            
+            # We MUST reset these safeguard variables for every new chat turn. 
+            # Otherwise, the agent inherits loop limits from the previous interaction and immediately triggers fallbacks.
+            "revision_count": 0,        
+            "past_queries": [],         
+            "reflection_logs": []       
         }
 
     else:
