@@ -195,7 +195,7 @@ if generate_btn:
                         clean_itinerary = str(raw_itinerary)
 
                     # Store assistant response & technical trace payload in memory
-                    st.session_state.message.append({
+                    st.session_state.messages.append({
                         "role": "assistant",
                         "content": clean_itinerary,
                         "trace": data
@@ -210,6 +210,8 @@ if generate_btn:
             except Exception as e:
                 st.error(f"Failed to connect to backend: {e}")
 
+
+
 # --- Right Screen: Conversational Chat UI Rendering ---
 # Dynamically loop through session state & render historical messages identically across reruns
 for msg in st.session_state.messages:
@@ -220,6 +222,76 @@ for msg in st.session_state.messages:
 
         #Inject the trace expanders strictly inside the assistant's message bubble if trace data exists
         if msg["role"] == "assistant" and "trace" in msg:
-            render_agent_trace(msg["trace"])
+            render_agent_trace(msg["trace"])  # msg["trace"] == data == response.json()
 
+
+
+# --- Action: Iterative Refinement Request (Follow-up) ---
+# Conditional rendering: Only show the chat input if an active session exists
+if st.session_state.thread_id:
+
+    # st.chat_input: Native Streamlit widget that pins a text input bar to the bottom of the screen
+    # The walrus operator (:=) assigns the input to user_feedback AND checks if it's not empty
+    if user_feedback := st.chat_input("Refine your itinerary (e.g., 'Make it cheaper', 'Add a museum')..."):
+
+        # 1. Append user's iterative refinement request to the frontend session memory immediately
+        st.session_state.messages.append({
+            "role": "user",
+            "content": user_feedback
+        })
+
+        # 2. Render the user's message instantly for responsive UX before the block API call
+        with st.chat_message("user"):
+            st.markdown(user_feedback)
+
+        # 3. Execute block API call to LangGraph backend
+        with st.spinner("Agent is refining your itinerary..."):
+
+            # Construct payload
+            # Note: We must include sidebar variables (destination, etc.) to satisfy Pydantic's strict schema validation, 
+            # even though our FastAPI router will prioritize routing based on user_feedback.
+            payload = {
+                "destination": destination,
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "duration": duration,
+                "budget": budget,
+                "travel_style": travel_style,
+                "constraints": constraints,
+                "special_requests": special_requests,
+                
+                # INJECT NEW DATA: Pass the session key and the specific edit instruction
+                "thread_id": st.session_state.thread_id,
+                "user_feedback": user_feedback
+            }
+
+            try:
+                # POST request
+                response = requests.post(API_URL, json=payload, timeout=4200)
+
+                if response.status_code == 200:
+                    data = response.json()
+
+                    # Safely extract itinerary into clean markdown string
+                    raw_itinerary = data.get("itinerary", "")
+                    if isinstance(raw_itinerary, dict):
+                        # Safely extract 'text' or 'content' depending on how the LLM formatted it
+                        clean_itinerary = raw_itinerary.get("text", raw_itinerary.get("content", str(raw_itinerary)))
+                    else:
+                        clean_itinerary = str(raw_itinerary)
+
+                    # Append updated agent itinerary and trace to frontend memory
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": clean_itinerary,
+                        "trace": data
+                    })
+
+                    # Force script rerun to render the newly populated array via the top-down loop
+                    st.rerun()
+
+                else:
+                    st.error(f"Backend Error: {response.text}")
+                    
+            except Exception as e:
+                st.error(f"Failed to connect to backend: {e}")
 
