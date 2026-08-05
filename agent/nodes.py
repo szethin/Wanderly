@@ -443,10 +443,14 @@ def generator_node(state: WanderlyState) -> dict:
     except Exception as e:
         print(f"❌ [Generator Node] Generation failed: {e}")
         
-        # Graceful Fallback: Instead of crashing the backend, return a polite error message into the chat UI
-        fallback_msg = f"⚠️ **Agent Notification:** I encountered a system issue while writing your itinerary (Error: {str(e)}). This is usually due to API limits or network timeouts. Please wait a moment and try asking me again!"
+        # Graceful Fallback: Return a polite error message, BUT prepend it to the existing itinerary
+        # This prevents the crucial memory state of the actual travel plan from being permanently overwritten by an error string.
+        fallback_msg = f"⚠️ **Agent Notification:** I encountered a system issue while writing your itinerary (Error: {str(e)}). This is usually due to API limits or network timeouts. Please wait a moment and try asking me again!\n\n---\n\n"
+        
+        # Safely retrieve the intact previous itinerary to preserve state
+        preserved_itinerary = state.get("final_itinerary", "")
         
         return {
-            "final_itinerary": fallback_msg,
+            "final_itinerary": fallback_msg + preserved_itinerary,
             "metrics": state.get("metrics", {})
         }

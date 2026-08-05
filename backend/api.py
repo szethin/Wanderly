@@ -63,13 +63,25 @@ async def plan_trip(request: TripRequest):
 
         # LangGraph automatically merges this dictionary into the saved historical state.
         input_state = {
+            # Inherit ALL sidebar settings to capture any UI slider/checkbox changes made during the chat turn
+            "destination": request.destination,
+            "start_date": request.start_date,
+            "duration": request.duration,
+            "budget": request.budget,
+            "travel_style": request.travel_style,
+            "constraints": request.constraints,
+            "special_requests": request.special_requests,
+
             "user_feedback": request.user_feedback,
             
             # We MUST reset these safeguard variables for every new chat turn. 
             # Otherwise, the agent inherits loop limits from the previous interaction and immediately triggers fallbacks.
             "revision_count": 0,        
             "past_queries": [],         
-            "reflection_logs": []       
+            "reflection_logs": [],
+
+            # Reset telemetry metrics to prevent wrong token accouting
+            "metrics": {}       
         }
 
     else:
