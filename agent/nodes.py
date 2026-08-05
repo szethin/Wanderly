@@ -74,7 +74,7 @@ def planner_node(state: WanderlyState) -> dict:
         if result.search_query:
             print(f"    -> Crafted Search Query: '{result.search_query}'")
         if result.weather_query:
-                    print(f"    -> Crafted Map Query: '{result.weather_query}'")
+            print(f"    -> Crafted Weather Query: '{result.weather_query}'")
 
         execution_time = time.time() - start_time
 
