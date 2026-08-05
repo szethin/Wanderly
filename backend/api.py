@@ -3,12 +3,17 @@ from pydantic import BaseModel
 from typing import List, Optional, cast
 import uvicorn
 import time
+import uuid   # Standard library for generating universally unique identifiers
+from langchain_core.runnables import RunnableConfig   # LangChain's native type definition for execution configurations
 
 # Import the state
 from agent.state import WanderlyState
 
 # Import the compiled graph
 from agent.graph import wanderly_graph
+
+
+
 
 # Initialize FastAPI application instance
 app = FastAPI(title="Wanderly Agent API", version="1.0")
@@ -23,46 +28,81 @@ class TripRequest(BaseModel):
     constraints: List[str]
     special_requests: Optional[str] = ""
 
+    # Optional thread identifier to resume previous sessions
+    thread_id: Optional[str] = ""
+
+    # Optional free-form text containing iterative refinement instructions
+    user_feedback: Optional[str] = ""
+
 
 @app.post("/plan_trip")
 async def plan_trip(request: TripRequest):
     """
     REST endpoint to trigger the LangGraph agentic workflow.
+    Supports both initial itinerary generation & iterative refinement.
     """
     print(f"📥 [API] Received trip planning request for {request.destination} starting {request.start_date}")
     api_start_time = time.time()
 
-    # Construct the initial state dictionary matching WanderlyState schema
-    initial_state = {
-        # --- Input: User Travel Request ---
-        "destination": request.destination,
-        "start_date": request.start_date,
-        "duration": request.duration,
-        "budget": request.budget,
-        "travel_style": request.travel_style,
-        "constraints": request.constraints,
-        "special_requests": request.special_requests,
+    # --- Session Management ---
+    # Generate a new random UUID if the clientt doesn't provide an existing thread_id
+    active_thread_id = request.thread_id if request.thread_id else str(uuid.uuid4())
 
-        "weather_query": request.destination,  # NEW: Initialize with raw user input, let Agent fix it if it fails
-
-        # --- Initialize Reflection State Variables ---
-        "reflection_logs": [],
-        "need_more_info": False,
-        "revision_count": 0,
-        "past_queries": [],
-
-        # --- Initialize Static Backup Variables ---
-        "planner_initial_tools": [],
-        "planner_initial_maps_query": "",
-        "planner_initial_search_query": "",
-        "planner_initial_weather_query": "",
-
-        "metrics": {} # Initialize empty metrics dictionary
+    # RunnableConfig: A LangChain native dictionary structure used to pass metadata to tools & checkpointers
+    # Passing "thread_id" under "configurable" tells MemorySaver to fetch the correct historical state
+    config: RunnableConfig = {
+        "configurable": {
+            "thread_id": active_thread_id
+        }
     }
 
+    # --- State Routing ---
+    # Determine if this is a brand-new generation or a follow-up refinement
+    if request.user_feedback:
+        print(f"🔄 [API] Iterative refinement detected for thread {active_thread_id}")
+
+        # We only pass the updated variable.
+        # LangGraph automatically merges this single key into the massive saved historical state.
+        input_state = {
+            "user_feedback": request.user_feedback
+        }
+
+    else:
+        print(f"🆕 [API] Initial generation detected for thread {active_thread_id}")
+
+        # First-time run requires constructing the full comprehensive baseline state dictionary matching WanderlyState schema
+        input_state = {
+            # --- Input: User Travel Request ---
+            "destination": request.destination,
+            "start_date": request.start_date,
+            "duration": request.duration,
+            "budget": request.budget,
+            "travel_style": request.travel_style,
+            "constraints": request.constraints,
+            "special_requests": request.special_requests,
+            "user_feedback": "",
+
+            "weather_query": request.destination,  # NEW: Initialize with raw user input, let Agent fix it if it fails
+
+            # --- Initialize Reflection State Variables ---
+            "reflection_logs": [],
+            "need_more_info": False,
+            "revision_count": 0,
+            "past_queries": [],
+
+            # --- Initialize Static Backup Variables ---
+            "planner_initial_tools": [],
+            "planner_initial_maps_query": "",
+            "planner_initial_search_query": "",
+            "planner_initial_weather_query": "",
+
+            "metrics": {} # Initialize empty metrics dictionary
+        }
+
     try:
-        # Runs compiled LangGraph using initial_state as input
-        final_state = wanderly_graph.invoke(cast(WanderlyState, initial_state))
+        # Pass both the {dynamic input_state} & {memory configuration}
+        # LangGraph automatically handles saving the state post-execution
+        final_state = wanderly_graph.invoke(cast(WanderlyState, input_state), config=config)
 
         # Calculate Total System Latency
         total_time = time.time() - api_start_time
@@ -97,6 +137,8 @@ async def plan_trip(request: TripRequest):
         # Extract essential outputs for the frontend
         return {
             "status": "success",
+            "thread_id": active_thread_id,  # Expose the session ID back to the frontend
+
             "planner_plan": final_state.get("planner_plan"),
             "planner_reasoning": final_state.get("planner_reasoning"),
 
