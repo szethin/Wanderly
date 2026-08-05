@@ -31,13 +31,20 @@ class WanderlyState(TypedDict):
     search_result: Dict[str, Any]
 
     # --- 4. Reflection & Iterative Control ---
-    reflection_feedback: str    # Stores the critique from the Reflection Node to inform downstream nodes
+    reflection_logs: List[Dict[str, Any]]    # Stores the Reflection Node critique from every reflection cycle 
     need_more_info: bool        # Flag for the conditional edge to decide routing
     revision_count: int         # Loop safeguard counter to prevent infinite reflections
     past_queries: List[str]     # Tracks previously executed queries to prevent redundant LLM tool calls
 
-    # --- 5. Final Output ---
+    # --- 5. UI Trace Static Backups ---
+    # Immutable snapshots preserving the Planner's original output before reflection overwrites them
+    planner_initial_tools: List[str]    
+    planner_initial_maps_query: str   
+    planner_initial_search_query: str 
+    planner_initial_weather_query: str  
+
+    # --- 6. Final Output ---
     final_itinerary: str        # Complete synthesized Markdown travel plan
 
-    # --- 6. Telemetry & Metrics ---
+    # --- 7. Telemetry & Metrics ---
     metrics: Dict[str, Any]     # Centralized storage for response times and token usage across nodes

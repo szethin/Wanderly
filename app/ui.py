@@ -119,46 +119,44 @@ if generate_btn:
                             st.write(f"{i+1}. {step}")
 
                         # 1.3. Tools Selected
-                        st.write(f"🛠️ **Tools Selected:** `{data.get('required_tools')}`")
+                        st.write(f"🛠️ **Tools Selected:** `{data.get('planner_initial_tools')}`")
 
                         # 1.4. Map & Search Queries
-                        if "maps" in data.get("required_tools", []):
-                            st.write(f"📍 **Maps Query:** `{data.get('maps_query')}`")
+                        if "maps" in data.get("planner_initial_tools", []):
+                            st.write(f"📍 **Maps Query:** `{data.get('planner_initial_maps_query')}`")
 
-                        if "tavily" in data.get("required_tools", []):
-                            st.write(f"🔍 **Search Query:** `{data.get('search_query')}`")
-
-                    # --- 2. Reflection Node Trace (Conditonal) ---
-                    revision_count = data.get("revision_count", 0)
-
-                    if revision_count > 0:
-                        with st.expander("🧐 Reflection Node Trace", expanded=True):
-
-                            st.warning("⚠️ **Agent triggered reflecton.**")
-
-                            # 2.1 Reflection Node Reasoning & Retry Count
-                            st.write(f"**🧐 Critique:** {data.get('reflection_feedback')}")
-                            st.write(f"**🔄 Revision Loop:** `{revision_count}` (Max limit: 2)")
-
-                            # 2.2 Past Failed Queries
-                            st.write(f"**❌ Past Failed Queries:** `{data.get('past_queries', [])}`")
-
-                            # 2.3 Updated Tool Call Plan & Tool Queries
-                            st.write("---")
-                            st.write("**✅ Updated Execution Plan:**")
+                        if "tavily" in data.get("planner_initial_tools", []):
+                            st.write(f"🔍 **Search Query:** `{data.get('planner_initial_search_query')}`")
                             
-                            # Expose the Coach's new instructions that overwrote the Planner's original output
-                            st.write(f"🛠️ **New Tools Selected:** `{data.get('required_tools')}`")
+                        if "weather" in data.get("planner_initial_tools", []):
+                            st.write(f"🌤️ **Weather Query:** `{data.get('planner_initial_weather_query')}`")
 
-                            if "maps" in data.get("required_tools", []):
-                                st.write(f"📍 **Optimized Maps Query:** `{data.get('maps_query')}`")
 
-                            if "tavily" in data.get("required_tools", []):
-                                st.write(f"🔍 **Optimized Search Query:** `{data.get('search_query')}`")
+                    # --- 2. Reflection Node Trace (Conditonal & Dynamic) ---
+                    reflection_logs = data.get("reflection_logs", [])
+                    
+                    if reflection_logs:
+                        st.warning("⚠️ **Agent triggered reflection to self-correct errors.**")
                         
+                        st.write(f"**❌ Global Past Failed Queries:** `{data.get('past_queries', [])}`")
 
+                        # Dynamically iterate and render every single reflection loop event
+                        for log in reflection_logs:
+                            with st.expander(f"🧐 Reflection Trace (Loop {log.get('loop')})", expanded=True):
+                                st.write(f"**Critique:** {log.get('critique')}")
+                                
+                                # Only render updated execution plan if the agent suggested new tools (skips system fallbacks)
+                                if log.get("tools"):
+                                    st.write("---")
+                                    st.write("**✅ Updated Execution Plan:**")
+                                    st.write(f"🛠️ **New Tools Selected:** `{log.get('tools')}`")
 
-
+                                    if "maps" in log.get("tools", []):
+                                        st.write(f"📍 **Optimized Maps Query:** `{log.get('maps_query')}`")
+                                    if "tavily" in log.get("tools", []):
+                                        st.write(f"🔍 **Optimized Search Query:** `{log.get('search_query')}`")
+                                    if "weather" in log.get("tools", []):
+                                        st.write(f"🌤️ **Optimized Weather Query:** `{log.get('weather_query')}`")
                         
                     
                 else: 

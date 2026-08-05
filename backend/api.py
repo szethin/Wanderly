@@ -46,10 +46,16 @@ async def plan_trip(request: TripRequest):
         "weather_query": request.destination,  # NEW: Initialize with raw user input, let Agent fix it if it fails
 
         # --- Initialize Reflection State Variables ---
-        "reflection_feedback": "",
+        "reflection_logs": [],
         "need_more_info": False,
         "revision_count": 0,
         "past_queries": [],
+
+        # --- Initialize Static Backup Variables ---
+        "planner_initial_tools": [],
+        "planner_initial_maps_query": "",
+        "planner_initial_search_query": "",
+        "planner_initial_weather_query": "",
 
         "metrics": {} # Initialize empty metrics dictionary
     }
@@ -98,12 +104,18 @@ async def plan_trip(request: TripRequest):
             "required_tools": final_state.get("required_tools"),
             "maps_query": final_state.get("maps_query"),
             "search_query": final_state.get("search_query"),
+            "weather_query": final_state.get("weather_query"),
 
             # Reflection variables
-            "reflection_feedback": final_state.get("reflection_feedback"),
-            "need_more_info": final_state.get("need_more_info"),
+            "reflection_logs": final_state.get("reflection_logs"),
             "revision_count": final_state.get("revision_count"),
             "past_queries": final_state.get("past_queries"),
+
+            # --- Immutable trace data for Planner UI ---
+            "planner_initial_tools": final_state.get("planner_initial_tools"),
+            "planner_initial_maps_query": final_state.get("planner_initial_maps_query"),
+            "planner_initial_search_query": final_state.get("planner_initial_search_query"),
+            "planner_initial_weather_query": final_state.get("planner_initial_weather_query"),
 
             # Final itinerary
             "itinerary": final_state.get("final_itinerary")

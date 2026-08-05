@@ -69,10 +69,12 @@ def planner_node(state: WanderlyState) -> dict:
 
         print(f"   -> Reasoning: {result.planner_reasoning}")
         print(f"    -> Tools Selected: {result.required_tools}")
-        if result.search_query:
-            print(f"    -> Crafted Search Query: '{result.search_query}'")
         if result.maps_query:
             print(f"    -> Crafted Map Query: '{result.maps_query}'")
+        if result.search_query:
+            print(f"    -> Crafted Search Query: '{result.search_query}'")
+        if result.weather_query:
+                    print(f"    -> Crafted Map Query: '{result.weather_query}'")
 
         execution_time = time.time() - start_time
 
@@ -87,22 +89,40 @@ def planner_node(state: WanderlyState) -> dict:
         return {
             "planner_reasoning": result.planner_reasoning,
             "planner_plan": result.planner_plan,
+
+            # 1. Active Variables (Mutable: will be overwritten by Reflection)
             "required_tools": result.required_tools,
             "maps_query": result.maps_query,
             "search_query": result.search_query,
             "weather_query": result.weather_query,
+
+            # 2. UI Trace Variables (Immutable: strictly tracks Planner's original intent)
+            "planner_initial_tools": result.required_tools,
+            "planner_initial_maps_query": result.maps_query,
+            "planner_initial_search_query": result.search_query,
+            "planner_initial_weather_query": result.weather_query,
+
             "metrics": current_metrics # Save telemetry to state
         }
 
     except Exception as e:
         print(f"❌ [Planner Node] Failed to parse output: {e}")
         # Graceful fallback: Prevent crash by moving forward with no tools
+        # Safely default the trace variables to corresponding empty types to prevent KeyError in UI rendering
         return {
             "planner_reasoning": "System encountered an error during planning. Executing safe fallback plan without external tools.",   # Provide a fallback reasoning so the UI still has a logical thought process to display
             "planner_plan": ["Fallback: Generate without tools"], 
+
             "required_tools": [], 
             "maps_query": "",
             "search_query": "",
+            "weather_query": "",
+
+            "planner_initial_tools": [],
+            "planner_initial_maps_query": "",
+            "planner_initial_search_query": "",
+            "planner_initial_weather_query": "",
+            
             "metrics": state.get("metrics", {})
         }
 
@@ -181,29 +201,43 @@ def reflection_node(state: WanderlyState) -> dict:
     past_queries = state.get("past_queries", [])
     current_maps_query = state.get("maps_query", "")
     current_search_query = state.get("search_query", "")
+    current_weather_query = state.get("weather_query", "")
 
     # --- MEMORY MANAGEMENT ---
-    # Append the queries that were JUST executed into the past queries list to prevent LLM from reusing them
     updated_past_queries = list(past_queries) # Create a copy to avoid mutating the original reference directly
+
+    # Append the queries that were JUST executed into the past queries list to prevent LLM from reusing them
     if current_maps_query and current_maps_query not in updated_past_queries:
         updated_past_queries.append(current_maps_query)
     if current_search_query and current_search_query not in updated_past_queries:
         updated_past_queries.append(current_search_query)
+    if current_weather_query and current_weather_query not in updated_past_queries:
+        updated_past_queries.append(current_weather_query)
+
+    # Ensure safe extraction of the array to avoid NoneType exceptions
+    reflection_logs = state.get("reflection_logs", [])
+    updated_logs = list(reflection_logs) # Create a shallow copy for pure functional state updates
 
     # --- HARD LOOP SAFEGUARD ---
     # Max 2 revisions. If we hit the limit, gracefully force the system to proceed to generation.
     if revision_count >= 2:
         print("⚠️ [Reflection Node] Max revision limit reached. Forcing generation fallback.")
 
-        # FIX (Amnesia Bug): Retrieve the last valuable LLM critique from the state before the cutoff.
-        # This prevents overwriting the agent's actual reasoning with a generic system error.
-        previous_feedback = state.get("reflection_feedback", "No previous feedback found.")
-        
+        # Append a final system-level log entry to the audit trail
+        fallback_log = {
+            "loop": revision_count + 1, # offset for human readable UI display
+            "critique": "⚠️ [Reflection Node]: Max revision limit reached. Forcing fallback to Generation phase.",
+            "tools": [], 
+            "maps_query": "", 
+            "search_query": "", 
+            "weather_query": ""
+        }
+        updated_logs.append(fallback_log)
+ 
         return {
             "need_more_info": False,
             
-            # Append the system warning to the LLM's last valid critique for absolute UI transparency
-            "reflection_feedback": f"{previous_feedback}\n\n⚠️ **[System Guard]**: Max iterations reached. Forcing fallback to Generation phase.",
+            "reflection_logs": updated_logs, # Return the complete audit trail array
             
             # FIX (Off-by-one Bug): Return the exact revision_count (2) instead of falsely incrementing to 3
             "revision_count": revision_count, 
@@ -265,14 +299,27 @@ def reflection_node(state: WanderlyState) -> dict:
             "reflection_tokens": current_metrics.get("reflection_tokens", 0) + tokens
         })
 
+        current_log = {
+            "loop": revision_count + 1,
+            "critique": result.reflection_feedback,
+            "tools": result.required_tools,
+            "maps_query": result.maps_query,
+            "search_query": result.search_query,
+            "weather_query": result.weather_query
+        }
+
+        updated_logs.append(current_log) # Event Sourcing: Append iteration state instead of overwriting
+
         # --- STATE UPDATE RETURN ---
-        # Any key returned here automatically OVERWRITES or APPENDS to the global WanderlyState
         return {
             "need_more_info": result.need_more_info,
-            "reflection_feedback": result.reflection_feedback,
+            "reflection_logs": updated_logs,            # Pass the appended list back to global state
+            
             "required_tools": result.required_tools,    # Overwrites old tools if returning to Tool Executor
             "maps_query": result.maps_query,            # Overwrites with new optimized query
             "search_query": result.search_query,        # Overwrites with new optimized query
+            "weather_query": result.weather_query,      # Overwrites with new optimized query
+            
             "revision_count": revision_count + 1,       # Increment loop counter
             "past_queries": updated_past_queries,       # Save updated past queries list
             "metrics": current_metrics
@@ -280,11 +327,22 @@ def reflection_node(state: WanderlyState) -> dict:
 
     except Exception as e:
         print(f"❌ [Reflection Node] Output parsing failed: {e}")
-        # Graceful Fallback: If LLM fails to structure output, break the loop and force generation to avoid infinite crash loops
+
+        # Graceful Fallback for Audit Trail
+        reflection_logs = state.get("reflection_logs", [])
+        updated_logs = list(reflection_logs)
+        
+        fallback_log = {
+            "loop": revision_count + 1,
+            "critique": f"❌ [System Error]: Reflection parsing failed ({e}). Forcing fallback to Generation phase.",
+            "tools": [], "maps_query": "", "search_query": "", "weather_query": ""
+        }
+        updated_logs.append(fallback_log)
+
         return {
             "need_more_info": False,
-            "reflection_feedback": "Reflection error. Forcing fallback to Generation phase.",
-            "revision_count": revision_count + 1,
+            "reflection_logs": updated_logs,       # Return the appended array
+            "revision_count": revision_count,      # Freeze the counter
             "past_queries": updated_past_queries,
             "metrics": state.get("metrics", {})
         }
