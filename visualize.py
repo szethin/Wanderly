@@ -11,10 +11,10 @@ def save_graph_image():
         png_data = wanderly_graph.get_graph().draw_mermaid_png()
         
         # Open a new file in 'wb' (write binary) mode and save the image
-        with open("wanderly_v2_graph.png", "wb") as f:
+        with open("wanderly_v3_graph.png", "wb") as f:
             f.write(png_data)
             
-        print("📸 Success! Graph visualization saved as 'wanderly_v2_graph.png'")
+        print("📸 Success! Graph visualization saved as 'wanderly_v3_graph.png'")
         
     except Exception as e:
         print(f"❌ Failed to generate graph: {e}")
