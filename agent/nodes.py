@@ -256,6 +256,8 @@ def reflection_node(state: WanderlyState) -> dict:
         Destination: {destination} ({duration} days, Budget: RM {budget} (Malaysian Ringgit))
         Style: {travel_style} | Constraints: {constraints} | Requests: {special_requests}
 
+        User Feedback (Latest Modification): {user_feedback}
+
         Past Failed Queries (DO NOT REUSE): {past_queries}
 
         --- Current Tool Observations ---
@@ -278,6 +280,9 @@ def reflection_node(state: WanderlyState) -> dict:
             "travel_style": state.get("travel_style"),
             "constraints": state.get("constraints"),
             "special_requests": state.get("special_requests"),
+
+            "user_feedback": state.get("user_feedback", ""),
+
             "past_queries": updated_past_queries,
             "maps_result": state.get("maps_result", "None"),
             "weather_result": state.get("weather_result", "None"),
@@ -389,47 +394,59 @@ def generator_node(state: WanderlyState) -> dict:
     # Removed StrOutputParser() so we can capture the raw AIMessage to read token counts
     chain = prompt | llm_creative
 
-    response = chain.invoke({
-        "destination": state.get("destination"),
-        "start_date": state.get("start_date"),
-        "duration": state.get("duration"),
-        "budget": state.get("budget"),
-        "travel_style": state.get("travel_style"),
-        "constraints": state.get("constraints"),
-        "special_requests": state.get("special_requests"),
-        "planner_plan": state.get("planner_plan"),
-        "maps_result": state.get("maps_result", "No map data retrieved."),
-        "weather_result": state.get("weather_result", "No weather data retrieved."),
-        "search_result": state.get("search_result", "No web data retrieved."),
+    try: 
+        response = chain.invoke({
+            "destination": state.get("destination"),
+            "start_date": state.get("start_date"),
+            "duration": state.get("duration"),
+            "budget": state.get("budget"),
+            "travel_style": state.get("travel_style"),
+            "constraints": state.get("constraints"),
+            "special_requests": state.get("special_requests"),
+            "planner_plan": state.get("planner_plan"),
+            "maps_result": state.get("maps_result", "No map data retrieved."),
+            "weather_result": state.get("weather_result", "No weather data retrieved."),
+            "search_result": state.get("search_result", "No web data retrieved."),
 
-        # Provide the LLM with the user's latest request and the previously generated itinerary to enable contextual editing
-        "user_feedback": state.get("user_feedback", ""),
-        "final_itinerary": state.get("final_itinerary", "No existing itinerary. This is the first generation.")
-    })
+            # Provide the LLM with the user's latest request and the previously generated itinerary to enable contextual editing
+            "user_feedback": state.get("user_feedback", ""),
+            "final_itinerary": state.get("final_itinerary", "No existing itinerary. This is the first generation.")
+        })
 
-    # Extract raw content and tokens manually
-    raw_content = response.content
-    
-    # FIX: Gemini's raw content without StrOutputParser is a list of block dicts e.g., [{'type': 'text', 'text': '...'}]
-    # We must cleanly extract the actual string before storing it into the global state.
-    if isinstance(raw_content, list) and len(raw_content) > 0 and isinstance(raw_content[0], dict):
-        final_output = raw_content[0].get("text", str(raw_content))
-    else:
-        final_output = str(raw_content) # Fallback for pure strings or unexpected formats
+        # Extract raw content and tokens manually
+        raw_content = response.content
+        
+        # FIX: Gemini's raw content without StrOutputParser is a list of block dicts e.g., [{'type': 'text', 'text': '...'}]
+        # We must cleanly extract the actual string before storing it into the global state.
+        if isinstance(raw_content, list) and len(raw_content) > 0 and isinstance(raw_content[0], dict):
+            final_output = raw_content[0].get("text", str(raw_content))
+        else:
+            final_output = str(raw_content) # Fallback for pure strings or unexpected formats
 
-    # Safely extract telemetry tokens (completely unaffected by the content formatting above)
-    tokens = getattr(response, "usage_metadata", {}).get("total_tokens", 0) if hasattr(response, "usage_metadata") else 0
+        # Safely extract telemetry tokens (completely unaffected by the content formatting above)
+        tokens = getattr(response, "usage_metadata", {}).get("total_tokens", 0) if hasattr(response, "usage_metadata") else 0
 
-    # Initialize the metrics dictionary inside the state
-    current_metrics = state.get("metrics", {})
-    current_metrics.update({
-        "generator_time": time.time() - start_time,
-        "generator_tokens": tokens
-    })
+        # Initialize the metrics dictionary inside the state
+        current_metrics = state.get("metrics", {})
+        current_metrics.update({
+            "generator_time": time.time() - start_time,
+            "generator_tokens": tokens
+        })
 
-    print("✅ [Generator Node] Itinerary generated successfully.")
-    
-    return {
-        "final_itinerary": final_output,
-        "metrics": current_metrics
-    }
+        print("✅ [Generator Node] Itinerary generated successfully.")
+        
+        return {
+            "final_itinerary": final_output,
+            "metrics": current_metrics
+        }
+
+    except Exception as e:
+        print(f"❌ [Generator Node] Generation failed: {e}")
+        
+        # Graceful Fallback: Instead of crashing the backend, return a polite error message into the chat UI
+        fallback_msg = f"⚠️ **Agent Notification:** I encountered a system issue while writing your itinerary (Error: {str(e)}). This is usually due to API limits or network timeouts. Please wait a moment and try asking me again!"
+        
+        return {
+            "final_itinerary": fallback_msg,
+            "metrics": state.get("metrics", {})
+        }

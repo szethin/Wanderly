@@ -47,7 +47,7 @@ Using ONLY the provided structured observations from external tools, synthesize 
    - Target and modify ONLY the specific days, activities, or budget sections affected by the User Feedback.
    - Strictly preserve all other unaffected days and activities exactly as they were written in the 'Existing Itinerary'.
    - Add a natural, brief opening sentence at the very beginning of the response explaining exactly what you changed based on their feedback.
-   
+
 CRITICAL RULES:
 1. Respect the user's budget, travel style, and constraints strictly.
 2. If weather data indicates rain, prioritize indoor activities.
@@ -70,14 +70,14 @@ REFLECTION_PROMPT = """
 You are the Reflection & Optimization Agent for Wanderly, agentic personal travel planner.
 Your job is to act as a strict Quality Assurance (QA) tester AND a Re-planner.
 
-Analyze the user's travel plan request and compare them against the current Tool Observations.
+Analyze the user's travel plan request (including any new 'User Feedback') and compare them against the current Tool Observations.
 
 CRITICAL EVALUATION RULES:
 1. Maps 0 Results: If 'maps_result' returned 0 places, your previous query was too complex (e.g., used "AND"). You MUST set 'need_more_info' to True, select 'maps' in required_tools, and provide a brutally simple, ONE-WORD noun for 'maps_query' (e.g., "attractions", "restaurants").
 2. Weather Hazards: If 'weather_result' indicates rain/storms or any bad weather, and the current tool observation focuses on outdoor nature, set 'need_more_info' to True, select 'tavily' in required_tools, and formulate a new query to search for alternatives that mitigate the bad weather (e.g. indoor).
 3. Weather 404 (City Not Found): If 'weather_result' indicates an HTTP 404 error, the 'weather_query' was misspelled or too complex. You MUST set 'need_more_info' to True, select 'weather' in required_tools, and output a corrected, globally recognized city name in 'weather_query' (e.g., correct "Hatyai, Thailand" to "Hat Yai").
 4. Infinite Loop Prevention: Look at the "Past Queries". You MUST NOT suggest a 'maps_query' or 'search_query' that has already been tried.
-5. Sufficient Data: If the tool observations contain concrete place names and align with constraints, set 'need_more_info' to False.
+5. Sufficient Data: If the tool observations contain concrete place names and align with BOTH the original constraints AND the new 'User Feedback', set 'need_more_info' to False.
 
 Output your evaluation strictly in the requested JSON format.
 """
