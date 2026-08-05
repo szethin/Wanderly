@@ -81,7 +81,8 @@ async def plan_trip(request: TripRequest):
             "reflection_logs": [],
 
             # Reset telemetry metrics to prevent wrong token accouting
-            "metrics": {}       
+            "metrics": {},
+            "error_msg": ""  # Reset error state for the new turn       
         }
 
     else:
@@ -113,7 +114,8 @@ async def plan_trip(request: TripRequest):
             "planner_initial_search_query": "",
             "planner_initial_weather_query": "",
 
-            "metrics": {} # Initialize empty metrics dictionary
+            "metrics": {}, # Initialize empty metrics dictionary
+            "error_msg": ""  # Reset error state for the new turn  
         }
 
     try:
@@ -151,6 +153,16 @@ async def plan_trip(request: TripRequest):
         print(f"   └─ Tavily:  {metrics.get('tavily_calls', 0)}")
         print("="*50 + "\n")
 
+        # =====================================================
+        # DYNAMIC PAYLOAD CONSTRUCTION (Decoupling State from UI)
+        # =====================================================
+        graph_itinerary = final_state.get("final_itinerary", "")
+        graph_error = final_state.get("error_msg", "")
+
+        # If an error exists, prepend it to the itinerary STRICTLY for the API response payload.
+        # The LangGraph MemorySaver remains completely untouched and unpolluted.
+        display_itinerary = f"{graph_error}\n\n---\n\n{graph_itinerary}" if graph_error else graph_itinerary
+
         # Extract essential outputs for the frontend
         return {
             "status": "success",
@@ -177,7 +189,7 @@ async def plan_trip(request: TripRequest):
             "planner_initial_weather_query": final_state.get("planner_initial_weather_query"),
 
             # Final itinerary
-            "itinerary": final_state.get("final_itinerary")
+            "itinerary": display_itinerary
         }
 
     except Exception as e:

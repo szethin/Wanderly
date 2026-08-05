@@ -209,6 +209,8 @@ if generate_btn:
 
             except Exception as e:
                 st.error(f"Failed to connect to backend: {e}")
+                # Remove the hanging user message from memory if the backend fails completely
+                st.session_state.messages.pop()
 
 
 
@@ -294,4 +296,6 @@ if st.session_state.thread_id:
                     
             except Exception as e:
                 st.error(f"Failed to connect to backend: {e}")
+                # Remove the hanging user message from memory if the backend fails completely
+                st.session_state.messages.pop()
 

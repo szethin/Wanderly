@@ -2,6 +2,7 @@ import time
 import os
 from dotenv import load_dotenv
 from typing import cast
+from datetime import datetime
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -60,7 +61,10 @@ def planner_node(state: WanderlyState) -> dict:
             "special_requests": state.get("special_requests"),
 
             # Safely extract user_feedback from the global state. Default to empty string for initial generation.
-            "user_feedback": state.get("user_feedback", "")
+            "user_feedback": state.get("user_feedback", ""),
+
+            # Dynamically inject execution-time date to prevent long-running server state freeze
+            "today_date": datetime.now().strftime("%Y-%m-%d")
         }))
 
         # Extract parsed object and raw message safely
@@ -437,7 +441,8 @@ def generator_node(state: WanderlyState) -> dict:
         
         return {
             "final_itinerary": final_output,
-            "metrics": current_metrics
+            "metrics": current_metrics,
+            "error_msg": "",    # Clear any previous error messages upon successful generation
         }
 
     except Exception as e:
@@ -447,10 +452,8 @@ def generator_node(state: WanderlyState) -> dict:
         # This prevents the crucial memory state of the actual travel plan from being permanently overwritten by an error string.
         fallback_msg = f"⚠️ **Agent Notification:** I encountered a system issue while writing your itinerary (Error: {str(e)}). This is usually due to API limits or network timeouts. Please wait a moment and try asking me again!\n\n---\n\n"
         
-        # Safely retrieve the intact previous itinerary to preserve state
-        preserved_itinerary = state.get("final_itinerary", "")
-        
         return {
-            "final_itinerary": fallback_msg + preserved_itinerary,
+            "final_itinerary": state.get("final_itinerary", ""), 
+            "error_msg": fallback_msg,  # Inject error into a separate, temporary channel
             "metrics": state.get("metrics", {})
         }
