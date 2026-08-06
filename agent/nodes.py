@@ -169,14 +169,17 @@ def tool_executor_node(state: WanderlyState) -> dict:
         # ==========================================
         if revision_count > 0:
             # Retrieve old maps state
-            old_maps = state.get("maps_results") or {}
+            old_maps = state.get("maps_result") or {}
 
             # Ensure it's a dictionary to prevent AttributeError before calling .get()
             old_places = old_maps.get("places", []) if isinstance(old_maps, dict) else []
             new_places = new_maps_result.get("places", [])
 
-            # Merge lists to retain previous tool context
-            new_maps_result["places"] = old_places + new_places
+            # Merge lists and filter duplicates based on place 'name' to optimize LLM token usage
+            # Uses dictionary comprehension as an ordered, fast deduplication mechanism
+            merged_places = {place["name"]: place for place in old_places + new_places if "name" in place}
+            new_maps_result["places"] = list(merged_places.values())
+            
             print(f"      [State] Accumulated Maps context: {len(new_maps_result['places'])} total places.")
 
         updates["maps_result"] = new_maps_result
@@ -218,8 +221,10 @@ def tool_executor_node(state: WanderlyState) -> dict:
             old_results = old_search.get("results", []) if isinstance(old_search, dict) else []
             new_results = new_search_result.get("results", [])
             
-            # Merge lists to retain diverse web knowledge
-            new_search_result["results"] = old_results + new_results
+            # Merge lists and deduplicate based on 'url' to optimize LLM context window
+            merged_results = {snippet["url"]: snippet for snippet in old_results + new_results if "url" in snippet}
+            new_search_result["results"] = list(merged_results.values())
+            
             print(f"      [State] Accumulated Tavily context: {len(new_search_result['results'])} total snippets.")
 
         updates["search_result"] = new_search_result
