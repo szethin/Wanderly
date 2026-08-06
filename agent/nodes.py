@@ -434,15 +434,21 @@ def generator_node(state: WanderlyState) -> dict:
     if user_feedback:
         print("   -> Operation Mode: Iterative Refinement")
         system_prompt = GENERATOR_MODE_EDITOR
+        tool_header = "--- New Tool Observations (For Requested Edit Only) ---"
+        itinerary_header = "--- Existing Itinerary (MASTER TEMPLATE TO PRESERVE) ---"
     elif has_retries:
         print("   -> Operation Mode: Reflection")
         system_prompt = GENERATOR_MODE_REFLECTION
+        tool_header = "--- Tool Observations ---"
+        itinerary_header = "--- Existing Itinerary (N/A) ---"
     else:
         print("   -> Operation Mode: Initial Generation")
         system_prompt = GENERATOR_MODE_INITIAL
+        tool_header = "--- Tool Observations ---"
+        itinerary_header = "--- Existing Itinerary (N/A) ---"
 
 
-    # Construct template utilizing the dynamically selected system prompt
+    # Construct template utilizing the dynamically selected system prompt & dynamic headers
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
         ("user", """
@@ -458,13 +464,13 @@ def generator_node(state: WanderlyState) -> dict:
         
         Agent Plan: {planner_plan}
         
-        --- Tool Observations ---
+        {tool_header}
         Maps Data: {maps_result}
         Weather Data: {weather_result}
         Web Search Data: {search_result}
         -------------------------
 
-        --- Existing Itinerary ---
+        {itinerary_header}
         {final_itinerary}
         --------------------------
         
@@ -496,7 +502,11 @@ def generator_node(state: WanderlyState) -> dict:
             "final_itinerary": state.get("final_itinerary", "No existing itinerary. This is the first generation."),
 
             # Inject the context for reflection mode
-            "reflection_history": clean_reflection_history
+            "reflection_history": clean_reflection_history,
+
+            # Inject dynamic headers
+            "tool_header": tool_header,
+            "itinerary_header": itinerary_header
         })
 
         # Extract raw content safely matching Gemini payload structures

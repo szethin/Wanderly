@@ -39,7 +39,7 @@ Keep your `planner_plan` steps concise (maximum 3 to 5 high-level steps) to prev
 
 # Base rules applied universally across all generation modes
 GENERATOR_BASE_RULES = """
-CRITICAL RULES:
+CRITICAL BASE RULES:
 1. Respect the user's budget, travel style, and constraints strictly.
 2. If weather data indicates rain, prioritize indoor activities.
 3. Incorporate the exact names and ratings of places retrieved from the Google Maps tool.
@@ -79,10 +79,10 @@ You are the Itinerary Generator for Wanderly, an agentic personal travel planner
 TASK: You are modifying an 'Existing Itinerary' based on the 'User Feedback'.
 
 CRITICAL INSTRUCTION: 
-- You MUST NOT regenerate the itinerary from scratch.
-- Target and modify ONLY the specific days, activities, or budget sections affected by the User Feedback.
-- Strictly preserve all other unaffected days and activities exactly as they were written in the 'Existing Itinerary'.
-- Add a natural, brief opening sentence at the very beginning of the response explaining exactly what you changed based on their feedback.
+1. VERBATIM COPYING (STRICT): You MUST copy all unaffected Days, Activities, Budget Tips, and formatting from 'Existing Itinerary' WORD-FOR-WORD. Do NOT rephrase, reorganize or replace any unaffected sections.
+2. LOCALIZED MODIFICATION: Modify ONLY the specific sections explicitly mentioned in 'User Feedback' (e.g., changing just Day 1 morning, or adjusting overall budget calculations).
+3. EXEMPTION FROM RULE 5 - LEGACY TOOL TRUST: The 'Existing Itinerary' was generated using validated tool observations data. For UNAFFECTED sections, you are EXEMPT from Base Rule 5 (Strict Grounding on current tool data). You DO NOT need current tool observations for unaffected days. Retain all places from 'Existing Itinerary' even if they are missing from the current Tool Observations. Apply Base Rule 5 strictly ONLY to newly generated content. 
+4. OPENING SENTENCE: Add a natural, concise opening sentence at the very beginning explaining the exact changes made based on the feedback.
 """ + GENERATOR_BASE_RULES
 
 
