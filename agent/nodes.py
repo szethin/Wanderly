@@ -9,7 +9,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 # Import State, Prompts, and Schema
 from agent.state import WanderlyState
-from agent.prompts import PLANNER_PROMPT, GENERATOR_PROMPT, REFLECTION_PROMPT
+from agent.prompts import PLANNER_PROMPT, GENERATOR_MODE_EDITOR, GENERATOR_MODE_INITIAL, GENERATOR_MODE_REFLECTION, REFLECTION_PROMPT
 from models.schema import PlannerOutput, ReflectionOutput
 
 # Import external tools
@@ -363,13 +363,41 @@ def reflection_node(state: WanderlyState) -> dict:
 
 def generator_node(state: WanderlyState) -> dict:
     """
-    Node 4: Final Synthesis. Reads all structured tool observations and drafts the itinerary.
+    Node 4: Final Synthesis. Reads tool observations and drafts the itinerary.
+    Utilizes Dynamic Prompt Routing to optimize LLM context limits based on execution history.
     """
     print("✍️ [Generator Node] Synthesizing final itinerary...")
     start_time = time.time() # Start stopwatch
 
+    # Extract state variables for routing evaluation
+    user_feedback = state.get("user_feedback", "")
+    revision_count = state.get("revision_count", 0)
+    reflection_logs = state.get("reflection_logs", [])
+
+
+    # --- Data Parsing: Reflecton History Sanitization ---
+    # Extract ONLY the critiques from the raw logs.
+    if revision_count > 0 and reflection_logs:
+        clean_reflection_history = "\n".join([f"- Reflection {log.get('loop')}: {log.get('critique')}" for log in reflection_logs])
+    else:
+        clean_reflection_history = "No reflection loops triggered. All tool data is original."
+
+
+    # --- DYNAMIC PROMPT ROUTING ENGINE ---
+    if user_feedback:
+        print("   -> Operation Mode: Iterative Refinement")
+        system_prompt = GENERATOR_MODE_EDITOR
+    elif revision_count > 0:
+        print("   -> Operation Mode: Reflection")
+        system_prompt = GENERATOR_MODE_REFLECTION
+    else:
+        print("   -> Operation Mode: Initial Generation")
+        system_prompt = GENERATOR_MODE_INITIAL
+
+
+    # Construct template utilizing the dynamically selected system prompt
     prompt = ChatPromptTemplate.from_messages([
-        ("system", GENERATOR_PROMPT),
+        ("system", system_prompt),
         ("user", """
         User Profile:
         Destination: {destination} (Starting: {start_date} for {duration} days, Budget: RM {budget} (Malaysian Ringgit))
@@ -378,6 +406,8 @@ def generator_node(state: WanderlyState) -> dict:
         Special Requests: {special_requests}
 
         User Feedback (Modification Request): {user_feedback}
+
+        Reflection History: {reflection_history}
         
         Agent Plan: {planner_plan}
         
@@ -407,21 +437,24 @@ def generator_node(state: WanderlyState) -> dict:
             "travel_style": state.get("travel_style"),
             "constraints": state.get("constraints"),
             "special_requests": state.get("special_requests"),
+
             "planner_plan": state.get("planner_plan"),
+
             "maps_result": state.get("maps_result", "No map data retrieved."),
             "weather_result": state.get("weather_result", "No weather data retrieved."),
             "search_result": state.get("search_result", "No web data retrieved."),
 
-            # Provide the LLM with the user's latest request and the previously generated itinerary to enable contextual editing
+            # Inject the context for editor mode
             "user_feedback": state.get("user_feedback", ""),
-            "final_itinerary": state.get("final_itinerary", "No existing itinerary. This is the first generation.")
+            "final_itinerary": state.get("final_itinerary", "No existing itinerary. This is the first generation."),
+
+            # Inject the context for reflection mode
+            "reflection_history": clean_reflection_history
         })
 
-        # Extract raw content and tokens manually
+        # Extract raw content safely matching Gemini payload structures
         raw_content = response.content
-        
-        # FIX: Gemini's raw content without StrOutputParser is a list of block dicts e.g., [{'type': 'text', 'text': '...'}]
-        # We must cleanly extract the actual string before storing it into the global state.
+
         if isinstance(raw_content, list) and len(raw_content) > 0 and isinstance(raw_content[0], dict):
             final_output = raw_content[0].get("text", str(raw_content))
         else:

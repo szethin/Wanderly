@@ -84,7 +84,7 @@ def render_agent_trace(data: dict):
     if reflection_logs:
         st.warning("⚠️ **Agent triggered reflection to self-correct errors.**")
         
-        st.write(f"**❌ Global Past Failed Queries:** `{data.get('past_queries', [])}`")
+        #st.write(f"**❌ Global Past Failed Queries:** `{data.get('past_queries', [])}`")
 
         # Dynamically iterate and render every single reflection loop event
         for log in reflection_logs:
