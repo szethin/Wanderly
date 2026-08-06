@@ -292,7 +292,9 @@ def reflection_node(state: WanderlyState) -> dict:
             # FIX (Off-by-one Bug): Return the exact revision_count (2) instead of falsely incrementing to 3
             "revision_count": revision_count, 
             
-            "past_queries": updated_past_queries
+            "past_queries": updated_past_queries,
+
+            "metrics": state.get("metrics", {})
         }
 
     # --- PROMPT INJECTION ---
@@ -420,7 +422,7 @@ def generator_node(state: WanderlyState) -> dict:
 
     # --- Data Parsing: Reflecton History Sanitization ---
     # Extract ONLY the critiques from the raw logs.
-    if revision_count > 0 and reflection_logs:
+    if revision_count > 1 and reflection_logs:
         clean_reflection_history = "\n".join([f"- Reflection {log.get('loop')}: {log.get('critique')}" for log in reflection_logs])
     else:
         clean_reflection_history = "No reflection loops triggered. All tool data is original."
@@ -430,7 +432,7 @@ def generator_node(state: WanderlyState) -> dict:
     if user_feedback:
         print("   -> Operation Mode: Iterative Refinement")
         system_prompt = GENERATOR_MODE_EDITOR
-    elif revision_count > 0:
+    elif revision_count > 1:
         print("   -> Operation Mode: Reflection")
         system_prompt = GENERATOR_MODE_REFLECTION
     else:
