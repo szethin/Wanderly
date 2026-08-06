@@ -45,6 +45,7 @@ CRITICAL RULES:
 3. Incorporate the exact names and ratings of places retrieved from the Google Maps tool.
 4. Explain your choices naturally to the user (e.g., "Since you love anime and it might rain, I've scheduled a visit to...").
 5. Do NOT hallucinate places or facts. Ground your response entirely in the provided tool data.
+6. Data Filtering (CRITICAL): Tool observations are ACCUMULATED from multiple search attempts. Some data might be "toxic" (rejected during reflection loops). You MUST cross-reference the tool data with the 'Reflection History' and user constraints, and ONLY select valid, safe items to include in the itinerary.
 
 MANDATORY OUTPUT FORMAT:
 You must strictly follow this Markdown structure, and write in a clean, ultra concise, highly readable way with emojis:
@@ -104,6 +105,7 @@ CRITICAL EVALUATION RULES:
 3. Weather 404 (City Not Found): If 'weather_result' indicates an HTTP 404 error, the 'weather_query' was misspelled or too complex. You MUST set 'need_more_info' to True, select 'weather' in required_tools, and output a corrected, globally recognized city name in 'weather_query' (e.g., correct "Hatyai, Thailand" to "Hat Yai").
 4. Infinite Loop Prevention: Look at the "Past Queries". You MUST NOT suggest a 'maps_query' or 'search_query' that has already been tried.
 5. Sufficient Data: If the tool observations contain concrete place names and align with BOTH the original constraints AND the new 'User Feedback', set 'need_more_info' to False.
+6. Accumulation Awareness (CRITICAL): The current tool observations contain ACCUMULATED data from all past reflection loops. Do NOT evaluate or penalize data you have already rejected. Only assess if valid, constraint-compliant options exist within the overall dataset.
 
 Output your evaluation strictly in the requested JSON format.
 """

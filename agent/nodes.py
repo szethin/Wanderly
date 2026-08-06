@@ -148,6 +148,9 @@ def tool_executor_node(state: WanderlyState) -> dict:
     # Retrieve existing metrics from the global state to prevent overwriting
     current_metrics = state.get("metrics", {})
 
+    # Extract revision_count to dynamically control state accumulation
+    revision_count = state.get("revision_count", 0)
+
     # State update dictionary to accumulate tool execution results
     updates = {}
 
@@ -158,7 +161,25 @@ def tool_executor_node(state: WanderlyState) -> dict:
 
         # Update tool call results
         maps_query = state.get("maps_query", "attractions")
-        updates["maps_result"] = search_google_maps(destination, query_type=maps_query)
+        new_maps_result = search_google_maps(destination, query_type=maps_query)
+
+        # ==========================================
+        # SMART ACCUMULATION ENGINE
+        # Only merge state lists if the system is currently under reflection loops
+        # ==========================================
+        if revision_count > 0:
+            # Retrieve old maps state
+            old_maps = state.get("maps_results") or {}
+
+            # Ensure it's a dictionary to prevent AttributeError before calling .get()
+            old_places = old_maps.get("places", []) if isinstance(old_maps, dict) else []
+            new_places = new_maps_result.get("places", [])
+
+            # Merge lists to retain previous tool context
+            new_maps_result["places"] = old_places + new_places
+            print(f"      [State] Accumulated Maps context: {len(new_maps_result['places'])} total places.")
+
+        updates["maps_result"] = new_maps_result
 
         # Dynamically accumulate execution time and increment tool call count across loops
         current_metrics["maps_time"] = current_metrics.get("maps_time", 0.0) + (time.time() - t0)
@@ -169,8 +190,10 @@ def tool_executor_node(state: WanderlyState) -> dict:
         # Weather tool call start time
         t0 = time.time()
 
-        # Dynamic fallback: Use LLM-cleaned weather_query if available, else default to raw destination
+        # Use LLM-cleaned weather_query if available, else default to raw destination
         weather_query = state.get("weather_query") or destination
+
+        # Weather ALWAYS overwrites. Reflection only re-triggers weather to fix a 404 City Not Found error.
         updates["weather_result"] = get_weather_forecast(weather_query)
 
         # Dynamically accumulate execution time and increment tool call count across loops
@@ -184,7 +207,22 @@ def tool_executor_node(state: WanderlyState) -> dict:
 
         # Update tool call results
         query = state.get("search_query", f"travel guide {destination}")
-        updates["search_result"] = search_travel_info(query)
+        new_search_result = search_travel_info(query)
+
+        # ==========================================
+        # SMART ACCUMULATION ENGINE
+        # Only merge state lists if the system is currently under reflection loops
+        # ==========================================
+        if revision_count > 0:
+            old_search = state.get("search_result") or {}
+            old_results = old_search.get("results", []) if isinstance(old_search, dict) else []
+            new_results = new_search_result.get("results", [])
+            
+            # Merge lists to retain diverse web knowledge
+            new_search_result["results"] = old_results + new_results
+            print(f"      [State] Accumulated Tavily context: {len(new_search_result['results'])} total snippets.")
+
+        updates["search_result"] = new_search_result
 
         # Dynamically accumulate execution time and increment tool call count across loops
         current_metrics["tavily_time"] = current_metrics.get("tavily_time", 0.0) + (time.time() - t0)
