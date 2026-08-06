@@ -416,13 +416,15 @@ def generator_node(state: WanderlyState) -> dict:
 
     # Extract state variables for routing evaluation
     user_feedback = state.get("user_feedback", "")
-    revision_count = state.get("revision_count", 0)
     reflection_logs = state.get("reflection_logs", [])
+    # FIX: Calculate actual retries by measuring log length rather than relying on the mutable revision_count.
+    # A length > 1 guarantees that the system looped back to the tool executor at least once.
+    has_retries = len(reflection_logs) > 1
 
 
     # --- Data Parsing: Reflecton History Sanitization ---
-    # Extract ONLY the critiques from the raw logs.
-    if revision_count > 1 and reflection_logs:
+    # Extract ONLY the critiques from the raw logs if there were ACTUAL retries/corrections
+    if has_retries:
         clean_reflection_history = "\n".join([f"- Reflection {log.get('loop')}: {log.get('critique')}" for log in reflection_logs])
     else:
         clean_reflection_history = "No reflection loops triggered. All tool data is original."
@@ -432,7 +434,7 @@ def generator_node(state: WanderlyState) -> dict:
     if user_feedback:
         print("   -> Operation Mode: Iterative Refinement")
         system_prompt = GENERATOR_MODE_EDITOR
-    elif revision_count > 1:
+    elif has_retries:
         print("   -> Operation Mode: Reflection")
         system_prompt = GENERATOR_MODE_REFLECTION
     else:
