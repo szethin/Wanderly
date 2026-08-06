@@ -131,7 +131,7 @@ async def plan_trip(request: TripRequest):
         # CONSOLIDATED TELEMETRY PRINT FOR V2 LOGGING
         # =====================================================
         print("\n" + "="*50)
-        print("📊 WANDERLY METRICS REPORT (V2 Reflection)")
+        print("📊 WANDERLY METRICS REPORT (V3 Iterative Refinement)")
         print("="*50)
         print(f"⏱️  Total Latency: {total_time:.2f}s")
         print(f"   ├─ Planner Time:   {metrics.get('planner_time', 0):.2f}s")
