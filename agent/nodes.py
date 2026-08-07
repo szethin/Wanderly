@@ -42,7 +42,7 @@ def planner_node(state: WanderlyState) -> dict:
     # 6. Special Requests
     prompt = ChatPromptTemplate.from_messages([
         ("system", PLANNER_PROMPT),
-        ("user", "Destination: {destination}\nStart Date: {start_date}\nDuration: {duration} days\nBudget: {budget}\nStyle: {travel_style}\nConstraints: {constraints}\nSpecial Requests: {special_requests}")
+        ("user", "Destination: {destination}\nStart Date: {start_date}\nDuration: {duration} days\nBudget: RM {budget} (Malaysian Ringgit)\nStyle: {travel_style}\nConstraints: {constraints}\nSpecial Requests: {special_requests}")
     ])
 
     # .with_structured_output(): LangChain's native method to enforce output format in Pydantic schema
@@ -169,7 +169,7 @@ def generator_node(state: WanderlyState) -> dict:
         ("system", GENERATOR_PROMPT),
         ("user", """
         User Profile:
-        Destination: {destination} (Starting: {start_date} for {duration} days, Budget: {budget})
+        Destination: {destination} (Starting: {start_date} for {duration} days, Budget: RM {budget} (Malaysian Ringgit))
         Travel Style: {travel_style}
         Constraints: {constraints}
         Special Requests: {special_requests}
