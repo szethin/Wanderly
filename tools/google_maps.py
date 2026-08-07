@@ -23,26 +23,37 @@ def search_google_maps(destination: str, query_type: str = "attractions") -> Dic
         }
 
     try:
-        # Using Google Maps Text Search Endpoint (Places API)
-        endpoint = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-        params = {
-            "query": f"top {query_type} in {destination}",
-            "key": GOOGLE_MAPS_API_KEY
+        # Google Places API (New) Endpoint
+        endpoint = "https://places.googleapis.com/v1/places:searchText"
+
+        # New API uses POST and strictly requires FieldMask in headers
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
+            "X-Goog-FieldMask": "places.displayName,places.rating,places.formattedAddress" 
         }
 
-        response = requests.get(endpoint, params=params, timeout=30)
+        payload = {
+            "textQuery": f"top {query_type} in {destination}",
+            "languageCode": "en",
+            "maxResultCount": 5 # Limit results natively
+        }
 
-        # Success
+        response = requests.post(endpoint, json=payload, headers=headers, timeout=30)
+
+        # Success (HTTP Level)
         if response.status_code == 200: 
             data = response.json()
-            results = data.get("results", [])[:5]   # Limit to top 5 places to optimize context window
 
-            # Extract only essential details (Name, Rating, Address)
+            # The new API returns a 'places' array directly, not 'results'
+            results = data.get("places", [])
+            
+            # Extract details using the new JSON structure
             places = [
                 {
-                    "name": item.get("name"),
-                    "rating": item.get("rating"),
-                    "address": item.get("formatted_address")
+                    "name": item.get("displayName", {}).get("text", "Unknown"),
+                    "rating": item.get("rating", "N/A"),
+                    "address": item.get("formattedAddress", "Unknown")
                 }
                 for item in results
             ]
@@ -54,9 +65,12 @@ def search_google_maps(destination: str, query_type: str = "attractions") -> Dic
                 "places": places
             }
 
-        # Error
+        # Error (HTTP Level)
         else:
-            print(f"⚠️ [Google Maps Tool] API Error HTTP {response.status_code}")
+            # The new API returns detailed error messages in the JSON body on failure
+            error_data = response.json()
+            error_msg = error_data.get("error", {}).get("message", "Unknown Error")
+            print(f"🚨 [Google Maps Tool] API Error {response.status_code}: {error_msg}")
 
             return {
                 "status": "ERROR", 
