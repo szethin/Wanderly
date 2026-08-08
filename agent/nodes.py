@@ -13,7 +13,7 @@ from agent.prompts import PLANNER_PROMPT, GENERATOR_MODE_EDITOR, GENERATOR_MODE_
 from models.schema import PlannerOutput, ReflectionOutput
 
 # Import external tools
-from tools.google_maps import search_google_maps, get_coordinates
+from tools.google_maps import search_google_maps
 from tools.weather import get_weather_forecast
 from tools.tavily import search_travel_info
 

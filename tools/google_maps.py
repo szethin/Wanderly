@@ -1,5 +1,7 @@
 import os
 import requests
+# Import the resilient session builder
+from tools.http_client import get_retry_session
 from typing import Dict, Any
 from dotenv import load_dotenv
 
@@ -39,7 +41,11 @@ def search_google_maps(destination: str, query_type: str = "attractions") -> Dic
             "maxResultCount": 5 # Limit results natively
         }
 
-        response = requests.post(endpoint, json=payload, headers=headers, timeout=30)
+        # Instantiate the resilient HTTP session
+        session = get_retry_session()
+
+        # Replaced standard 'requests.post' with 'session.post' to inherit automatic retry behaviors
+        response = session.post(endpoint, json=payload, headers=headers, timeout=30)
 
         # Success (HTTP Level)
         if response.status_code == 200: 
@@ -85,103 +91,4 @@ def search_google_maps(destination: str, query_type: str = "attractions") -> Dic
             "status": "ERROR",
             "error": str(e),
             "places": []
-        }
-
-
-
-def get_coordinates(location_name: str) -> Dict[str, Any]:
-    """
-    Converts a human-readable location into latitude and longitude coordinates.
-    """
-    if not GOOGLE_MAPS_API_KEY:
-        return {
-            "status": "FALLBACK", 
-            "lat": 0.0, 
-            "lng": 0.0
-        }
-
-    try:
-        endpoint = "https://maps.googleapis.com/maps/api/geocode/json"
-        params = {
-            "address": location_name, 
-            "key": GOOGLE_MAPS_API_KEY
-        }
-        
-        response = requests.get(endpoint, params=params, timeout=30)
-        
-        if response.status_code == 200:
-            data = response.json()
-            results = data.get("results", [])
-            if results:
-                location = results[0].get("geometry", {}).get("location", {})
-                print(f"✅ [Google Maps] Geocoded {location_name}.")
-                return {
-                    "status": "SUCCESS", 
-                    "lat": location.get("lat"), 
-                    "lng": location.get("lng")
-                }
-        
-        return {
-            "status": "ERROR", 
-            "lat": None, 
-            "lng": None
-        }
-    
-    except Exception as e:
-        print(f"❌ [Google Maps] Geocode Exception: {e}")
-        return {
-            "status": "ERROR", 
-            "error": str(e)
-        }
-
-
-
-def get_distance_matrix(origins: str, destinations: str) -> Dict[str, Any]:
-    """
-    Calculates travel time and distance between origins and destinations.
-    """
-    if not GOOGLE_MAPS_API_KEY:
-        return {
-            "status": "FALLBACK", 
-            "distance": "N/A", 
-            "duration": "N/A"
-        }
-
-    try:
-        endpoint = "https://maps.googleapis.com/maps/api/distancematrix/json"
-        params = {
-            "origins": origins,
-            "destinations": destinations,
-            "key": GOOGLE_MAPS_API_KEY,
-            "mode": "transit" # Default to public transport for travel planning
-        }
-        
-        response = requests.get(endpoint, params=params, timeout=30)
-        
-        if response.status_code == 200:
-            data = response.json()
-            rows = data.get("rows", [])
-            if rows:
-                elements = rows[0].get("elements", [])
-                if elements and elements[0].get("status") == "OK":
-                    distance = elements[0].get("distance", {}).get("text")
-                    duration = elements[0].get("duration", {}).get("text")
-                    print(f"✅ [Google Maps] Travel time {origins} to {destinations}: {duration}.")
-                    return {
-                        "status": "SUCCESS", 
-                        "distance": distance, 
-                        "duration": duration
-                    }
-                    
-        return {
-            "status": "ERROR", 
-            "distance": None, 
-            "duration": None
-        }
-    
-    except Exception as e:
-        print(f"❌ [Google Maps] Distance Matrix Exception: {e}")
-        return {
-            "status": "ERROR", 
-            "error": str(e)
         }

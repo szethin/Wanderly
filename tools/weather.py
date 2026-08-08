@@ -3,6 +3,9 @@ import requests
 from typing import Dict, Any
 from dotenv import load_dotenv
 
+# Import the resilient session builder
+from tools.http_client import get_retry_session
+
 load_dotenv()
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
@@ -30,7 +33,11 @@ def get_weather_forecast(destination: str) -> Dict[str, Any]:
             "units": "metric"   # Standardize units to Celsius
         }
 
-        response = requests.get(endpoint, params=params, timeout=30)
+        # Instantiate the resilient HTTP session
+        session = get_retry_session()
+
+        # Replaced standard 'requests.get' with 'session.get' to enforce deterministic backoff
+        response = session.get(endpoint, params=params, timeout=30)
 
         # Success
         if response.status_code == 200:
