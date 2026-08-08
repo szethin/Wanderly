@@ -10,20 +10,41 @@ st.markdown("""
 
     /* Subtle orange accent for primary buttons and focus states */
     div.stButton > button:first-child {
-        background-color: #FF9F43;
+        background-color: #ff5343;
         color: white;
         border-radius: 6px;
         border: none;
     }
 
     div.stButton > button:first-child:hover {
-        background-color: #E6892E;
+        background-color: #c44534;
     }
 
-    /* Light orange background for the Agent Trace expanders */
-    .streamlit-expanderHeader {
-        background-color: #FFF5EB;
-        border-radius: 4px;
+    /* Main app background (right hand side) */
+    [data-testid="stAppViewContainer"] {
+        background-color: #fbf7f3 !important;
+    }
+
+    /* Make top header transparent to blend with the new main background */
+    [data-testid="stHeader"] {
+        background-color: transparent !important;
+    }
+
+
+    /* Global message bubble styling */
+    [data-testid="stChatMessage"] {
+        background-color: #ffffff !important;
+        border: 3px solid #f4e6db !important;
+        border-radius: 12px !important;
+        padding: 15px !important;
+        margin-bottom: 10px !important;
+    }
+
+    /* Text rendering parameters */
+    [data-testid="stChatMessage"] p {
+        color: #4A4A4A !important;
+        line-height: 1.6 !important;
+        font-size: 15px !important;
     }
 
     </style>
@@ -54,7 +75,7 @@ def render_agent_trace(data: dict):
     Helper function to render Agentic Trace (Planner & Reflection) inside chat messages.
     """
     # --- 1. Planner Node Trace ---
-    with st.expander("🧠 Agent Reasoning", expanded=False):  # Set expanded=False by default to keep chat history clean and scannable
+    with st.expander("🧠 Planner Node Reasoning", expanded=False):  # Set expanded=False by default to keep chat history clean and scannable
         # 1.1. Planner Reasoning
         st.write("**🧠 Planner Node Reasoning**")
         st.write(data.get("planner_reasoning"))
@@ -84,17 +105,16 @@ def render_agent_trace(data: dict):
     if len(reflection_logs) > 1:
         st.warning("⚠️ **Agent triggered reflection to self-correct errors.**")
         
-        st.write(f"**❌ Global Past Failed Queries:** `{data.get('past_queries', [])}`")
+        st.write(f"**🔎 All Queries Attempted:** `{data.get('past_queries', [])}`")
 
         # Dynamically iterate and render every single reflection loop event
         for log in reflection_logs:
             with st.expander(f"🧐 Reflection Trace (Loop {log.get('loop')})", expanded=False):
-                st.write(f"**Critique:** {log.get('critique')}")
+                st.write(f"**🧐 Reflection Node Critique:** {log.get('critique')}")
                 
                 # Only render updated execution plan if the agent suggested new tools (skips system fallbacks)
                 if log.get("tools"):
-                    st.write("---")
-                    st.write("**✅ Updated Execution Plan:**")
+                    st.write("**✅ Updated Tool Calls:**")
                     st.write(f"🛠️ **New Tools Selected:** `{log.get('tools')}`")
 
                     if "maps" in log.get("tools", []):
