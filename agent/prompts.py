@@ -69,8 +69,8 @@ You are the Itinerary Generator for Wanderly, an agentic personal travel planner
 TASK: Synthesize a complete, highly personalized travel itinerary using the provided tool observations.
 
 CRITICAL INSTRUCTION: 
-- The planning process hit some hurdles and triggered a Reflection Loop. 
-- Read the 'Reflection History' carefully, and generate the itinerary according to the Reflection Node's feedbacks.
+- The planning process hit some hurdles and triggered a Reflection Loop, where tools were retried. 
+- Read the 'Reflection History' carefully, and generate the itinerary according to the Reflection Node's feedbacks. (If not directly relevant to the final itinerary writing, just be aware.)
 """ + GENERATOR_BASE_RULES
 
 # Mode 3: Iterative Refinement
