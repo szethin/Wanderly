@@ -1,0 +1,25 @@
+services:
+  # --- Backend Service (FastAPI + LangGraph) ---
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    ports:
+      - "8000:8000" # Map host port 8000 to container port 8000
+    env_file:
+      - .env # Automatically inject API Keys from your local .env file
+    restart: always
+
+  # --- Frontend Service (Streamlit UI) ---
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    ports:
+      - "8501:8501" # Map host port 8501 to container port 8501
+    environment:
+      # Direct frontend container to communicate with backend container using Docker network service name
+      - BACKEND_API_URL=http://backend:8000/plan_trip
+    depends_on:
+      - backend # Ensures backend starts before launching frontend UI
+    restart: always
